@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Database Updater</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #f0f0f0;
+            transition: all 0.3s ease;
+        }
+
+        .step:hover {
+            border-color: #4facfe;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.1);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #4facfe;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .step-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .config-group {
+            margin-bottom: 15px;
+        }
+
+        .config-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .config-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .config-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .drop-zone {
+            border: 3px dashed #4facfe;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(79, 172, 254, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+        }
+
+        .drop-zone:hover {
+            background: rgba(79, 172, 254, 0.1);
+            border-color: #2196F3;
+        }
+
+        .drop-zone.dragover {
+            background: rgba(79, 172, 254, 0.15);
+            border-color: #2196F3;
+            transform: scale(1.02);
+        }
+
+        .drop-zone-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .drop-zone-text {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .drop-zone-subtext {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .button.secondary {
+            background: #6c757d;
+        }
+
+        .log-area {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 2px solid #333;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-success { color: #00ff00; }
+        .log-error { color: #ff4444; }
+        .log-warning { color: #ffaa00; }
+        .log-info { color: #4facfe; }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-waiting { background: #ccc; }
+        .status-success { background: #00ff00; }
+        .status-error { background: #ff4444; }
+        .status-processing { background: #ffaa00; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .file-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Instagram Database Updater</h1>
+            <p>Upload your CSV file to automatically update your GitHub database</p>
+        </div>
+        
+        <div class="content">
+            <!-- Step 1: Configuration -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">1</span>
+                    Configure GitHub Settings
+                </div>
+                <div class="config-section">
+                    <div class="config-group">
+                        <label for="github-owner">GitHub Username/Organization:</label>
+                        <input type="text" id="github-owner" placeholder="your-github-username">
+                    </div>
+                    <div class="config-group">
+                        <label for="github-repo">Repository Name:</label>
+                        <input type="text" id="github-repo" placeholder="your-repository-name">
+                    </div>
+                    <div class="config-group">
+                        <label for="github-token">GitHub Personal Access Token:</label>
+                        <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="config-group">
+                        <label for="database-file">Database File Path:</label>
+                        <input type="text" id="database-file" placeholder="database_mini.json" value="database_mini.json">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Upload File -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">2</span>
+                    Upload Your CSV File
+                </div>
+                
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <div class="drop-zone-text">Drop your CSV file here</div>
+                    <div class="drop-zone-subtext">or click to select from your computer</div>
+                </div>
+                
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                
+                <div id="fileInfo" class="file-info hidden">
+                    <div><strong>📄 File:</strong> <span id="fileName"></span></div>
+                    <div><strong>📏 Size:</strong> <span id="fileSize"></span></div>
+                    <div><strong>📊 Records:</strong> <span id="recordCount">Analyzing...</span></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Process -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">3</span>
+                    Process Update
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="button" id="testBtn" disabled>
+                        <span class="status-indicator status-waiting"></span>
+                        Test File (Safe)
+                    </button>
+                    <button class="button" id="updateBtn" disabled>
+                        <span class="status-indicator status-waiting"></span>
+                        Update Database
+                    </button>
+                </div>
+                
+                <div class="progress-bar hidden" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <!-- Step 4: Results -->
+            <div class="step">
+                <div class="step-title">
+                    <span class="step-number">4</span>
+                    Results & Logs
+                </div>
+                
+                <div class="log-area" id="logArea">
+                    <div class="log-entry log-info">Ready to process your Instagram database update...</div>
+                    <div class="log-entry log-info">Configure your GitHub settings and upload a CSV file to begin.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🔧 CONFIGURATION
+        let CONFIG = {
+            github: {
+                owner: '',
+                repo: '',
+                token: '',
+                branch: 'main',
+                databaseFile: 'database_mini.json'
+            },
+            options: {
+                createBackup: true,
+                preserveManualWork: true,
+                addNewAccounts: true,
+                updateExistingAccounts: true,
+                defaultCategory: "Unknown",
+                defaultDescription: "Unknown"
+            }
+        };
+
+        // 📊 STATISTICS
+        let stats = {
+            processed: 0,
+            updated: 0,
+            added: 0,
+            skipped: 0,
+            errors: 0
+        };
+
+        let currentFile = null;
+        let csvData = null;
+
+        // 🖥️ DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const recordCount = document.getElementById('recordCount');
+        const testBtn = document.getElementById('testBtn');
+        const updateBtn = document.getElementById('updateBtn');
+        const logArea = document.getElementById('logArea');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        // 📝 LOGGING
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logArea.appendChild(entry);
+            logArea.scrollTop = logArea.scrollHeight;
+            console.log(`${type.toUpperCase()}: ${message}`);
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = `${percent}%`;
+            if (percent > 0) {
+                progressBar.classList.remove('hidden');
+            }
+        }
+
+        function updateButtonStatus(button, status) {
+            const indicator = button.querySelector('.status-indicator');
+            indicator.className = `status-indicator status-${status}`;
+        }
+
+        // 🔧 CONFIG MANAGEMENT
+        function updateConfig() {
+            CONFIG.github.owner = document.getElementById('github-owner').value;
+            CONFIG.github.repo = document.getElementById('github-repo').value;
+            CONFIG.github.token = document.getElementById('github-token').value;
+            CONFIG.github.databaseFile = document.getElementById('database-file').value;
+        }
+
+        function validateConfig() {
+            updateConfig();
+            return CONFIG.github.owner && CONFIG.github.repo && CONFIG.github.token;
+        }
+
+        // 📁 FILE HANDLING
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        async function handleFile(file) {
+            if (!file || !file.name.endsWith('.csv')) {
+                log('Please select a valid CSV file', 'error');
+                return;
+            }
+
+            currentFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+            fileInfo.classList.remove('hidden');
+
+            log(`File selected: ${file.name}`, 'success');
+
+            try {
+                // Read and parse CSV
+                const csvText = await readFileAsText(file);
+                csvData = parseCSV(csvText);
+                
+                recordCount.textContent = `${csvData.length} records found`;
+                log(`Parsed ${csvData.length} records from CSV`, 'success');
+
+                // Enable buttons if config is valid
+                if (validateConfig()) {
+                    testBtn.disabled = false;
+                    updateBtn.disabled = false;
+                    log('Ready to process! Use "Test File" first to see what would happen.', 'info');
+                } else {
+                    log('Please configure your GitHub settings first', 'warning');
+                }
+
+            } catch (error) {
+                log(`Error reading file: ${error.message}`, 'error');
+            }
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n').filter(line => line.trim());
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                const record = {};
+                
+                headers.forEach((header, index) => {
+                    let value = values[index] || '';
+                    // Convert boolean strings
+                    if (value === 'true' || value === 'True') value = true;
+                    else if (value === 'false' || value === 'False') value = false;
+                    // Convert numbers
+                    else if (!isNaN(value) && value !== '' && !isNaN(parseFloat(value))) {
+                        value = parseFloat(value);
+                    }
+                    record[header] = value;
+                });
+                
+                if (Object.values(record).some(v => v !== '')) {
+                    data.push(record);
+                }
+            }
+
+            return data;
+        }
+
+        // 🔗 GITHUB API
+        async function githubAPI(endpoint, method = 'GET', body = null) {
+            const url = `https://api.github.com${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'Authorization': `token ${CONFIG.github.token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`GitHub API Error ${response.status}: ${errorData.message}`);
+            }
+
+            return await response.json();
+        }
+
+        // 🧪 TEST FUNCTION
+        async function testUpdate() {
+            if (!validateConfig() || !csvData) {
+                log('Missing configuration or CSV data', 'error');
+                return;
+            }
+
+            updateButtonStatus(testBtn, 'processing');
+            log('🧪 Starting test run...', 'info');
+            updateProgress(10);
+
+            try {
+                // Test GitHub connection
+                log('Testing GitHub connection...', 'info');
+                await githubAPI(`/repos/${CONFIG.github.owner}/${CONFIG.github.repo}`);
+                updateProgress(30);
+
+                // Test file access
+                log('Checking database file access...', 'info');
+                await githubAPI(`/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`);
+                updateProgress(50);
+
+                // Analyze CSV data
+                log('Analyzing CSV data...', 'info');
+                const usernameCount = csvData.filter(r => r.username).length;
+                const verifiedCount = csvData.filter(r => r.is_verified).length;
+                updateProgress(80);
+
+                log(`✅ Test completed successfully!`, 'success');
+                log(`📊 Would process ${usernameCount} accounts`, 'info');
+                log(`✅ ${verifiedCount} verified accounts found`, 'info');
+                log(`💡 Ready for real update!`, 'info');
+                updateProgress(100);
+
+                updateButtonStatus(testBtn, 'success');
+
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+                updateButtonStatus(testBtn, 'error');
+            }
+        }
+
+        // 🚀 UPDATE FUNCTION
+        async function performUpdate() {
+            if (!validateConfig() || !csvData) {
+                log('Missing configuration or CSV data', 'error');
+                return;
+            }
+
+            if (!confirm(`Update your GitHub database with ${csvData.length} records?\n\nThis will:\n- Create a backup\n- Update existing accounts\n- Add new accounts\n- Preserve your manual categories`)) {
+                return;
+            }
+
+            updateButtonStatus(updateBtn, 'processing');
+            testBtn.disabled = true;
+            updateBtn.disabled = true;
+
+            try {
+                log('🚀 Starting database update...', 'info');
+                updateProgress(5);
+
+                // Get current database
+                log('📥 Fetching current database...', 'info');
+                const current = await getCurrentDatabase();
+                updateProgress(15);
+
+                // Create backup
+                log('💾 Creating backup...', 'info');
+                await createBackup(JSON.stringify(current.records, null, 2));
+                updateProgress(25);
+
+                // Process data
+                log('🔧 Processing CSV data...', 'info');
+                const updatedRecords = await processCSVData(current.records, csvData);
+                updateProgress(70);
+
+                // Save to GitHub
+                log('📤 Saving to GitHub...', 'info');
+                await saveToGitHub(updatedRecords, current.sha);
+                updateProgress(90);
+
+                // Show results
+                log('🎉 Update completed successfully!', 'success');
+                log(`📊 Updated: ${stats.updated} records`, 'success');
+                log(`➕ Added: ${stats.added} records`, 'success');
+                log(`⏭️ Skipped: ${stats.skipped} records`, 'info');
+                updateProgress(100);
+
+                updateButtonStatus(updateBtn, 'success');
+
+            } catch (error) {
+                log(`❌ Update failed: ${error.message}`, 'error');
+                updateButtonStatus(updateBtn, 'error');
+            } finally {
+                testBtn.disabled = false;
+                updateBtn.disabled = false;
+            }
+        }
+
+        async function getCurrentDatabase() {
+            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
+            const data = await githubAPI(endpoint);
+            
+            const content = atob(data.content.replace(/\s/g, ''));
+            const database = JSON.parse(content);
+            
+            log(`Found ${database.length} existing records`, 'info');
+            
+            return {
+                records: database,
+                sha: data.sha
+            };
+        }
+
+        async function createBackup(originalContent) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const backupPath = `backups/database_backup_${timestamp}.json`;
+            
+            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${backupPath}`;
+            await githubAPI(endpoint, 'PUT', {
+                message: `Backup before update - ${timestamp}`,
+                content: btoa(unescape(encodeURIComponent(originalContent))),
+                branch: CONFIG.github.branch
+            });
+            
+            log(`Backup created: ${backupPath}`, 'success');
+        }
+
+        async function processCSVData(existingRecords, csvData) {
+            const mergedRecords = [...existingRecords];
+            stats = { processed: 0, updated: 0, added: 0, skipped: 0, errors: 0 };
+
+            for (let i = 0; i < csvData.length; i++) {
+                const csvRecord = csvData[i];
+                stats.processed++;
+
+                if (!csvRecord.username) {
+                    stats.skipped++;
+                    continue;
+                }
+
+                try {
+                    const existingIndex = mergedRecords.findIndex(record => 
+                        record.userName === csvRecord.username
+                    );
+
+                    if (existingIndex !== -1) {
+                        // Update existing record
+                        mergedRecords[existingIndex] = updateExistingRecord(
+                            mergedRecords[existingIndex], 
+                            csvRecord
+                        );
+                        stats.updated++;
+                    } else {
+                        // Add new record
+                        mergedRecords.push(createNewRecord(csvRecord));
+                        stats.added++;
+                    }
+
+                    // Update progress
+                    if (i % 10 === 0) {
+                        const progress = 25 + (i / csvData.length) * 45;
+                        updateProgress(progress);
+                    }
+
+                } catch (error) {
+                    log(`Error processing ${csvRecord.username}: ${error.message}`, 'error');
+                    stats.errors++;
+                }
+            }
+
+            return mergedRecords;
+        }
+
+        function updateExistingRecord(existingRecord, csvRecord) {
+            const updated = { ...existingRecord };
+
+            // Update technical fields
+            if (csvRecord.fbid_v2) updated.fbid_v2 = csvRecord.fbid_v2;
+            if (csvRecord.full_name) updated.full_name = csvRecord.full_name;
+            if (csvRecord.profile_pic_url) updated.profile_pic_url = csvRecord.profile_pic_url;
+            if (csvRecord.pk) updated.pk = csvRecord.pk;
+            if (csvRecord.pk_id) updated.pk_id = csvRecord.pk_id;
+            if (csvRecord.is_private !== undefined) updated.is_private = csvRecord.is_private;
+            if (csvRecord.is_verified !== undefined) updated.is_verified = csvRecord.is_verified;
+
+            return updated;
+        }
+
+        function createNewRecord(csvRecord) {
+            return {
+                instagram_link: `https://www.instagram.com/${csvRecord.username}/`,
+                userName: csvRecord.username,
+                Category: CONFIG.options.defaultCategory,
+                Description: CONFIG.options.defaultDescription,
+                followersCount: null,
+                followsCount: null,
+                fbid_v2: csvRecord.fbid_v2 || null,
+                full_name: csvRecord.full_name || null,
+                has_anonymous_profile_picture: csvRecord.has_anonymous_profile_picture || false,
+                id: csvRecord.id || null,
+                is_favorite: csvRecord.is_favorite || false,
+                is_private: csvRecord.is_private || false,
+                is_verified: csvRecord.is_verified || false,
+                latest_reel_media: csvRecord.latest_reel_media || 0,
+                pk: csvRecord.pk || null,
+                pk_id: csvRecord.pk_id || null,
+                profile_pic_id: csvRecord.profile_pic_id || null,
+                profile_pic_url: csvRecord.profile_pic_url || null,
+                strong_id__: csvRecord.strong_id__ || null,
+                third_party_downloads_enabled: csvRecord.third_party_downloads_enabled || 0,
+                account_badges: csvRecord.account_badges || null,
+                followed_by: csvRecord.followed_by ? [csvRecord.followed_by] : []
+            };
+        }
+
+        async function saveToGitHub(updatedRecords, originalSha) {
+            const content = JSON.stringify(updatedRecords, null, 2);
+            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
+
+            const commitMessage = `Update Instagram database - ${new Date().toISOString()} - ${stats.added} added, ${stats.updated} updated`;
+
+            await githubAPI(endpoint, 'PUT', {
+                message: commitMessage,
+                content: btoa(unescape(encodeURIComponent(content))),
+                sha: originalSha,
+                branch: CONFIG.github.branch
+            });
+
+            log('Database saved successfully!', 'success');
+        }
+
+        // 🎯 EVENT LISTENERS
+        testBtn.addEventListener('click', testUpdate);
+        updateBtn.addEventListener('click', performUpdate);
+
+        // Auto-validate config on input
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', () => {
+                if (csvData && validateConfig()) {
+                    testBtn.disabled = false;
+                    updateBtn.disabled = false;
+                }
+            });
+        });
+
+        // Initial log
+        log('Instagram Database Updater ready!', 'success');
+        log('Configure your GitHub settings and upload a CSV file to begin.', 'info');
+    </script>
+</body>
+</html>

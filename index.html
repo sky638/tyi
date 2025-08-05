@@ -36,28 +36,64 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
+        .followers-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
             margin-bottom: 30px;
-            flex-wrap: wrap;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
-        .stat-card {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
+        .section-header {
             text-align: center;
-            color: white;
-            min-width: 150px;
+            margin-bottom: 25px;
         }
 
-        .stat-number {
-            font-size: 2rem;
-            font-weight: bold;
+        .section-header h2 {
+            color: #333;
             margin-bottom: 5px;
+            font-size: 1.8rem;
+        }
+
+        .section-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .followers-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .follower-account {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .follower-account:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+
+        .follower-account.selected {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
+        }
+
+        .follower-account.selected:hover {
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.5);
         }
 
         .filters {
@@ -110,6 +146,7 @@
             flex: 1;
             /* Remove number input spinners/arrows for all browsers */
             -moz-appearance: textfield;
+            appearance: textfield;
         }
 
         /* Chrome, Safari, Edge, Opera */
@@ -117,7 +154,6 @@
         .range-input input::-webkit-inner-spin-button {
             -webkit-appearance: none;
             margin: 0;
-        }
         }
 
         .filter-actions {
@@ -255,9 +291,25 @@
 
         .meta-info {
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            gap: 10px;
             font-size: 0.9rem;
             color: #888;
+        }
+
+        .meta-info > div:first-child {
+            display: flex;
+            gap: 20px;
+        }
+
+        .follower-tag {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #667eea;
+            margin: 0 2px;
+            font-size: 0.85rem;
         }
 
         .loading {
@@ -316,10 +368,6 @@
                 grid-template-columns: 1fr;
             }
 
-            .stats {
-                gap: 15px;
-            }
-
             .results-header {
                 flex-direction: column;
                 align-items: stretch;
@@ -341,18 +389,13 @@
             <div id="loadStatus">Initializing...</div>
         </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number" id="totalAccounts">-</div>
-                <div>Total Accounts</div>
+        <div class="followers-section" id="followersSection" style="display: none;">
+            <div class="section-header">
+                <h2>Active Followers</h2>
+                <p>Accounts that are following others in this dataset</p>
             </div>
-            <div class="stat-card">
-                <div class="stat-number" id="categoriesCount">-</div>
-                <div>Categories</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="avgFollowers">-</div>
-                <div>Avg Followers</div>
+            <div class="followers-grid" id="followersGrid">
+                <!-- Follower accounts will be populated here -->
             </div>
         </div>
 
@@ -411,6 +454,7 @@
     <script>
 let allData = [];
 let filteredData = [];
+let selectedFollowers = new Set(); // Track which followers are selected for filtering
 let originalOrderMap = new Map();
         let currentPage = 1;
         const itemsPerPage = 50;
@@ -530,17 +574,59 @@ let originalOrderMap = new Map();
         }
 
         function updateStats() {
-            const validFollowers = allData.filter(item => item.followersCount > 0);
-            const avgFollowers = validFollowers.length > 0 
-                ? Math.round(validFollowers.reduce((sum, item) => sum + item.followersCount, 0) / validFollowers.length)
-                : 0;
-                
-            const categories = new Set(allData.map(item => item.Category)
-                .filter(cat => cat && cat !== 'null' && cat !== 'Uncategorized')).size;
+            // Update followers section
+            updateFollowersSection();
+        }
 
-            document.getElementById('totalAccounts').textContent = allData.length.toLocaleString();
-            document.getElementById('categoriesCount').textContent = categories.toLocaleString();
-            document.getElementById('avgFollowers').textContent = avgFollowers.toLocaleString();
+        function updateFollowersSection() {
+            // Get all unique followers from the followed_by arrays
+            const allFollowers = new Set();
+            allData.forEach(item => {
+                if (item.followed_by && Array.isArray(item.followed_by)) {
+                    item.followed_by.forEach(follower => allFollowers.add(follower));
+                }
+            });
+
+            const followersGrid = document.getElementById('followersGrid');
+            const followersSection = document.getElementById('followersSection');
+
+            if (allFollowers.size > 0) {
+                // Convert to array and sort
+                const sortedFollowers = Array.from(allFollowers).sort();
+                
+                // Create follower elements with toggle functionality
+                followersGrid.innerHTML = sortedFollowers.map(follower => {
+                    const isSelected = selectedFollowers.has(follower);
+                    return `<span class="follower-account ${isSelected ? 'selected' : ''}" onclick="toggleFollowerFilter('${follower}')">${isSelected ? '✓ ' : ''}@${follower}</span>`;
+                }).join('');
+                
+                followersSection.style.display = 'block';
+            } else {
+                followersSection.style.display = 'none';
+            }
+        }
+
+        function toggleFollowerFilter(followerUsername) {
+            if (selectedFollowers.has(followerUsername)) {
+                selectedFollowers.delete(followerUsername);
+            } else {
+                selectedFollowers.add(followerUsername);
+            }
+            
+            // Update the visual state
+            updateFollowersSection();
+            
+            // Apply the new filter
+            applyFilters();
+        }
+
+        function searchForFollower(followerUsername) {
+            // Set the search input to the follower's username
+            document.getElementById('searchInput').value = followerUsername;
+            // Apply filters to show results
+            applyFilters();
+            // Scroll to results
+            document.getElementById('resultsCount').scrollIntoView({ behavior: 'smooth' });
         }
 
         function applyFilters() {
@@ -564,7 +650,12 @@ let originalOrderMap = new Map();
 
                 const matchesFollowers = item.followersCount >= minFollowers && item.followersCount <= maxFollowers;
 
-                return matchesSearch && matchesCategory && matchesFollowers;
+                // New follower filter logic: if no followers selected, show all; else, only show accounts followed by selected followers
+                const matchesFollowerFilter = selectedFollowers.size === 0 || 
+                    (item.followed_by && Array.isArray(item.followed_by) && 
+                     item.followed_by.some(follower => selectedFollowers.has(follower)));
+
+                return matchesSearch && matchesCategory && matchesFollowers && matchesFollowerFilter;
             });
 
             // Apply sorting
@@ -626,28 +717,7 @@ let originalOrderMap = new Map();
             const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
             const pageData = filteredData.slice(startIndex, endIndex);
 
-            const cards = pageData.map(item => {
-                const followersText = item.followersCount > 0 ? formatNumber(item.followersCount) : 'N/A';
-                const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
-                const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
-                const description = item.Description || 'No description available';
-
-                return `
-                    <div class="data-card">
-                        <div class="card-header">
-                            <a href="${item.instagram_link}" target="_blank" class="username">@${item.userName}</a>
-                            <span class="followers-badge">${followersText}</span>
-                        </div>
-                        <div class="category">${category}</div>
-                        <div class="description">${description.substring(0, 200)}${description.length > 200 ? '...' : ''}</div>
-                        <div class="meta-info">
-                            <span>Following: ${followingText}</span>
-                            <span>•</span>
-                            <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            const cards = pageData.map(item => generateCardHtml(item)).join('');
 
             // Add load more button if there are more results
             const loadMoreButton = endIndex < filteredData.length ? `
@@ -671,28 +741,7 @@ let originalOrderMap = new Map();
             const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
             const pageData = filteredData.slice(startIndex, endIndex);
 
-            const newCards = pageData.map(item => {
-                const followersText = item.followersCount > 0 ? formatNumber(item.followersCount) : 'N/A';
-                const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
-                const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
-                const description = item.Description || 'No description available';
-
-                return `
-                    <div class="data-card">
-                        <div class="card-header">
-                            <a href="${item.instagram_link}" target="_blank" class="username">@${item.userName}</a>
-                            <span class="followers-badge">${followersText}</span>
-                        </div>
-                        <div class="category">${category}</div>
-                        <div class="description">${description.substring(0, 200)}${description.length > 200 ? '...' : ''}</div>
-                        <div class="meta-info">
-                            <span>Following: ${followingText}</span>
-                            <span>•</span>
-                            <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            const newCards = pageData.map(item => generateCardHtml(item)).join('');
 
             const loadMoreButton = endIndex < filteredData.length ? `
                 <div style="text-align: center; margin-top: 30px;">
@@ -713,6 +762,10 @@ let originalOrderMap = new Map();
             document.getElementById('maxFollowers').value = '';
             document.getElementById('sortBy').value = 'followers_desc';
             
+            // Clear selected followers
+            selectedFollowers.clear();
+            updateFollowersSection();
+            
             applyFilters();
         }
 
@@ -723,6 +776,35 @@ let originalOrderMap = new Map();
                 return (num / 1000).toFixed(1) + 'K';
             }
             return num.toLocaleString();
+        }
+
+        function generateCardHtml(item) {
+            const followersText = item.followersCount > 0 ? formatNumber(item.followersCount) : 'N/A';
+            const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
+            const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
+            const description = item.Description || 'No description available';
+
+            return `
+                <div class="data-card">
+                    <div class="card-header">
+                        <a href="${item.instagram_link}" target="_blank" class="username">@${item.userName}</a>
+                        <span class="followers-badge">${followersText}</span>
+                    </div>
+                    <div class="category">${category}</div>
+                    <div class="description">${description.substring(0, 200)}${description.length > 200 ? '...' : ''}</div>
+                    <div class="meta-info">
+                        <div>
+                            <span>Following: ${followingText}</span>
+                            <span>•</span>
+                            <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
+                        </div>
+                        ${item.followed_by.length > 0 ? `
+                        <div>
+                            <span style="color: #444;">Followed by:</span> ${item.followed_by.map(follower => `<span class="follower-tag">@${follower}</span>`).join(' ')}
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
         }
 
         // Add event listeners for real-time filtering
