@@ -38,4 +38,666 @@
 
         .stats {
             display: flex;
-            justi
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            min-width: 150px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .filters {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #444;
+        }
+
+        .filter-group input, .filter-group select {
+            padding: 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .filter-group input:focus, .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .range-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .range-input input {
+            flex: 1;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e1e1e1;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .results {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .results-count {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .sort-controls select {
+            padding: 8px 12px;
+            border: 2px solid #e1e1e1;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .data-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .data-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border: 1px solid #e1e1e1;
+        }
+
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .username {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .username:hover {
+            text-decoration: underline;
+        }
+
+        .followers-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .category {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .description {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .meta-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results h3 {
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        .load-notice {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #0c5460;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e1e1e1;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                gap: 15px;
+            }
+
+            .results-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Instagram Data Explorer</h1>
+            <p>Discover and filter through 41,000+ Instagram profiles and influencers</p>
+        </div>
+
+        <div class="load-notice" id="loadNotice">
+            🚀 <strong>Loading Data:</strong> Fetching your Instagram dataset...
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="loadStatus">Initializing...</div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalAccounts">-</div>
+                <div>Total Accounts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="categoriesCount">-</div>
+                <div>Categories</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgFollowers">-</div>
+                <div>Avg Followers</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="searchInput">Search Username or Description</label>
+                    <input type="text" id="searchInput" placeholder="Type to search...">
+                </div>
+
+                <div class="filter-group">
+                    <label for="categoryFilter">Category</label>
+                    <select id="categoryFilter">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Followers Range</label>
+                    <div class="range-input">
+                        <input type="number" id="minFollowers" placeholder="Min">
+                        <span>to</span>
+                        <input type="number" id="maxFollowers" placeholder="Max">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label>Following Range</label>
+                    <div class="range-input">
+                        <input type="number" id="minFollowing" placeholder="Min">
+                        <span>to</span>
+                        <input type="number" id="maxFollowing" placeholder="Max">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                <button class="btn btn-secondary" onclick="clearFilters()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="results">
+            <div class="results-header">
+                <div class="results-count" id="resultsCount">Loading data...</div>
+                <div class="sort-controls">
+                    <label for="sortBy">Sort by:</label>
+                    <select id="sortBy" onchange="applyFilters()">
+                        <option value="followers_desc">Followers (High to Low)</option>
+                        <option value="followers_asc">Followers (Low to High)</option>
+                        <option value="username_asc">Username (A-Z)</option>
+                        <option value="username_desc">Username (Z-A)</option>
+                        <option value="following_desc">Following (High to Low)</option>
+                        <option value="following_asc">Following (Low to High)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="data-grid" id="dataGrid">
+                <div class="loading">Loading Instagram data...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const itemsPerPage = 50;
+
+        // URL to your JSON data file
+        const DATA_URL = 'https://raw.githubusercontent.com/sky638/merged_instagram_data_labeled.json/main/merged_instagram_data_labeled.json';
+
+        async function loadData() {
+            updateStatus('Connecting to data source...');
+            updateProgress(10);
+
+            try {
+                updateStatus('Downloading data...');
+                updateProgress(30);
+
+                const response = await fetch(DATA_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                updateStatus('Processing data...');
+                updateProgress(60);
+
+                const data = await response.json();
+                
+                updateStatus('Finalizing...');
+                updateProgress(90);
+
+                // Clean and process the data
+                allData = data.filter(item => item && item.userName).map(item => ({
+                    instagram_link: item.instagram_link || '',
+                    userName: item.userName || '',
+                    Category: item.Category || 'Uncategorized',
+                    Description: item.Description || '',
+                    followersCount: parseFloat(item.followersCount) || 0,
+                    followsCount: parseFloat(item.followsCount) || 0
+                }));
+
+                updateStatus('Data loaded successfully!');
+                updateProgress(100);
+
+                // Initialize the app
+                setTimeout(() => {
+                    document.getElementById('loadNotice').style.display = 'none';
+                    populateCategories();
+                    updateStats();
+                    filteredData = [...allData];
+                    renderData();
+                }, 500);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateStatus('Error loading data: ' + error.message);
+                
+                // Show error in the data grid
+                document.getElementById('dataGrid').innerHTML = `
+                    <div class="no-results">
+                        <h3>Error Loading Data</h3>
+                        <p>Could not load the Instagram data. Please check your connection and try refreshing the page.</p>
+                        <p><small>Error: ${error.message}</small></p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('loadStatus').textContent = message;
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        function populateCategories() {
+            const categories = [...new Set(allData.map(item => item.Category))]
+                .filter(cat => cat && cat !== 'null' && cat !== 'Uncategorized')
+                .sort();
+                
+            const select = document.getElementById('categoryFilter');
+            select.innerHTML = '<option value="">All Categories</option>';
+            
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                select.appendChild(option);
+            });
+        }
+
+        function updateStats() {
+            const validFollowers = allData.filter(item => item.followersCount > 0);
+            const avgFollowers = validFollowers.length > 0 
+                ? Math.round(validFollowers.reduce((sum, item) => sum + item.followersCount, 0) / validFollowers.length)
+                : 0;
+                
+            const categories = new Set(allData.map(item => item.Category)
+                .filter(cat => cat && cat !== 'null' && cat !== 'Uncategorized')).size;
+
+            document.getElementById('totalAccounts').textContent = allData.length.toLocaleString();
+            document.getElementById('categoriesCount').textContent = categories.toLocaleString();
+            document.getElementById('avgFollowers').textContent = avgFollowers.toLocaleString();
+        }
+
+        function applyFilters() {
+            if (allData.length === 0) return;
+
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const minFollowers = parseFloat(document.getElementById('minFollowers').value) || 0;
+            const maxFollowers = parseFloat(document.getElementById('maxFollowers').value) || Infinity;
+            const minFollowing = parseFloat(document.getElementById('minFollowing').value) || 0;
+            const maxFollowing = parseFloat(document.getElementById('maxFollowing').value) || Infinity;
+
+            filteredData = allData.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.userName.toLowerCase().includes(searchTerm) ||
+                    (item.Description && item.Description.toLowerCase().includes(searchTerm));
+                
+                const matchesCategory = !category || item.Category === category;
+                
+                const matchesFollowers = item.followersCount >= minFollowers && item.followersCount <= maxFollowers;
+                const matchesFollowing = item.followsCount >= minFollowing && item.followsCount <= maxFollowing;
+
+                return matchesSearch && matchesCategory && matchesFollowers && matchesFollowing;
+            });
+
+            // Apply sorting
+            const sortBy = document.getElementById('sortBy').value;
+            filteredData.sort((a, b) => {
+                switch (sortBy) {
+                    case 'followers_desc':
+                        return b.followersCount - a.followersCount;
+                    case 'followers_asc':
+                        return a.followersCount - b.followersCount;
+                    case 'username_asc':
+                        return a.userName.localeCompare(b.userName);
+                    case 'username_desc':
+                        return b.userName.localeCompare(a.userName);
+                    case 'following_desc':
+                        return b.followsCount - a.followsCount;
+                    case 'following_asc':
+                        return a.followsCount - b.followsCount;
+                    default:
+                        return 0;
+                }
+            });
+
+            currentPage = 1;
+            renderData();
+        }
+
+        function renderData() {
+            const resultsCount = document.getElementById('resultsCount');
+            const dataGrid = document.getElementById('dataGrid');
+
+            if (allData.length === 0) {
+                resultsCount.textContent = 'Loading data...';
+                return;
+            }
+
+            resultsCount.textContent = `Showing ${filteredData.length.toLocaleString()} results`;
+
+            if (filteredData.length === 0) {
+                dataGrid.innerHTML = `
+                    <div class="no-results">
+                        <h3>No results found</h3>
+                        <p>Try adjusting your filters to see more results.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Paginate results
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            const cards = pageData.map(item => {
+                const followersText = item.followersCount > 0 ? formatNumber(item.followersCount) : 'N/A';
+                const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
+                const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
+                const description = item.Description || 'No description available';
+
+                return `
+                    <div class="data-card">
+                        <div class="card-header">
+                            <a href="${item.instagram_link}" target="_blank" class="username">@${item.userName}</a>
+                            <span class="followers-badge">${followersText}</span>
+                        </div>
+                        <div class="category">${category}</div>
+                        <div class="description">${description.substring(0, 200)}${description.length > 200 ? '...' : ''}</div>
+                        <div class="meta-info">
+                            <span>Following: ${followingText}</span>
+                            <span>•</span>
+                            <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add load more button if there are more results
+            const loadMoreButton = endIndex < filteredData.length ? `
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="loadMore()">
+                        Load More (${filteredData.length - endIndex} remaining)
+                    </button>
+                </div>
+            ` : '';
+
+            dataGrid.innerHTML = cards + loadMoreButton;
+        }
+
+        function loadMore() {
+            currentPage++;
+            
+            const dataGrid = document.getElementById('dataGrid');
+            const currentCards = dataGrid.innerHTML;
+            
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
+            const pageData = filteredData.slice(startIndex, endIndex);
+
+            const newCards = pageData.map(item => {
+                const followersText = item.followersCount > 0 ? formatNumber(item.followersCount) : 'N/A';
+                const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
+                const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
+                const description = item.Description || 'No description available';
+
+                return `
+                    <div class="data-card">
+                        <div class="card-header">
+                            <a href="${item.instagram_link}" target="_blank" class="username">@${item.userName}</a>
+                            <span class="followers-badge">${followersText}</span>
+                        </div>
+                        <div class="category">${category}</div>
+                        <div class="description">${description.substring(0, 200)}${description.length > 200 ? '...' : ''}</div>
+                        <div class="meta-info">
+                            <span>Following: ${followingText}</span>
+                            <span>•</span>
+                            <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const loadMoreButton = endIndex < filteredData.length ? `
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="loadMore()">
+                        Load More (${filteredData.length - endIndex} remaining)
+                    </button>
+                </div>
+            ` : '';
+
+            const cleanedContent = currentCards.replace(/<div style="text-align: center.*?<\/div>/s, '');
+            dataGrid.innerHTML = cleanedContent + newCards + loadMoreButton;
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('minFollowers').value = '';
+            document.getElementById('maxFollowers').value = '';
+            document.getElementById('minFollowing').value = '';
+            document.getElementById('maxFollowing').value = '';
+            document.getElementById('sortBy').value = 'followers_desc';
+            
+            applyFilters();
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toLocaleString();
+        }
+
+        // Add event listeners for real-time filtering
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+        document.getElementById('minFollowers').addEventListener('input', applyFilters);
+        document.getElementById('maxFollowers').addEventListener('input', applyFilters);
+        document.getElementById('minFollowing').addEventListener('input', applyFilters);
+        document.getElementById('maxFollowing').addEventListener('input', applyFilters);
+
+        // Load data when page loads
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>
