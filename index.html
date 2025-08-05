@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram Data Explorer</title>
+    <title>The Young Internet</title>
     <style>
         * {
             box-sizing: border-box;
@@ -108,6 +108,16 @@
 
         .range-input input {
             flex: 1;
+            /* Remove number input spinners/arrows for all browsers */
+            -moz-appearance: textfield;
+        }
+
+        /* Chrome, Safari, Edge, Opera */
+        .range-input input::-webkit-outer-spin-button,
+        .range-input input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
         }
 
         .filter-actions {
@@ -320,8 +330,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Instagram Data Explorer</h1>
-            <p>Discover and filter through 41,000+ Instagram profiles and influencers</p>
+            <h1>The Young Internet</h1>
         </div>
 
         <div class="load-notice" id="loadNotice">
@@ -356,9 +365,7 @@
 
                 <div class="filter-group">
                     <label for="categoryFilter">Category</label>
-                    <select id="categoryFilter">
-                        <option value="">All Categories</option>
-                    </select>
+                    <input type="text" id="categoryFilter" placeholder="Type category keywords, separated by commas (e.g. singer, rapper)">
                 </div>
 
                 <div class="filter-group">
@@ -369,15 +376,7 @@
                         <input type="number" id="maxFollowers" placeholder="Max">
                     </div>
                 </div>
-
-                <div class="filter-group">
-                    <label>Following Range</label>
-                    <div class="range-input">
-                        <input type="number" id="minFollowing" placeholder="Min">
-                        <span>to</span>
-                        <input type="number" id="maxFollowing" placeholder="Max">
-                    </div>
-                </div>
+                <!-- Removed Following Range filter group -->
             </div>
 
             <div class="filter-actions">
@@ -392,6 +391,7 @@
                 <div class="sort-controls">
                     <label for="sortBy">Sort by:</label>
                     <select id="sortBy" onchange="applyFilters()">
+                        <option value="original">Original</option>
                         <option value="followers_desc">Followers (High to Low)</option>
                         <option value="followers_asc">Followers (Low to High)</option>
                         <option value="username_asc">Username (A-Z)</option>
@@ -409,13 +409,14 @@
     </div>
 
     <script>
-        let allData = [];
-        let filteredData = [];
+let allData = [];
+let filteredData = [];
+let originalOrderMap = new Map();
         let currentPage = 1;
         const itemsPerPage = 50;
 
-        // URL to your JSON data file
-        const DATA_URL = 'https://raw.githubusercontent.com/sky638/merged_instagram_data_labeled.json/main/merged_instagram_data_labeled.json';
+        // URL to your JSON data file (local path for static hosting)
+        const DATA_URL = 'merged_instagram_data_labeled.json';
 
         async function loadData() {
             updateStatus('Connecting to data source...');
@@ -439,14 +440,18 @@
                 updateProgress(90);
 
                 // Clean and process the data
-                allData = data.filter(item => item && item.userName).map(item => ({
-                    instagram_link: item.instagram_link || '',
-                    userName: item.userName || '',
-                    Category: item.Category || 'Uncategorized',
-                    Description: item.Description || '',
-                    followersCount: parseFloat(item.followersCount) || 0,
-                    followsCount: parseFloat(item.followsCount) || 0
-                }));
+                allData = data.filter(item => item && item.userName).map((item, idx) => {
+                    const obj = {
+                        instagram_link: item.instagram_link || '',
+                        userName: item.userName || '',
+                        Category: item.Category || 'Uncategorized',
+                        Description: item.Description || '',
+                        followersCount: parseFloat(item.followersCount) || 0,
+                        followsCount: parseFloat(item.followsCount) || 0
+                    };
+                    originalOrderMap.set(obj.userName + '___' + obj.instagram_link, idx);
+                    return obj;
+                });
 
                 updateStatus('Data loaded successfully!');
                 updateProgress(100);
@@ -517,45 +522,54 @@
             if (allData.length === 0) return;
 
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const category = document.getElementById('categoryFilter').value;
+            const categoryInput = document.getElementById('categoryFilter').value.trim().toLowerCase();
+            // Split by comma, trim, and filter out empty strings
+            const categoryTerms = categoryInput ? categoryInput.split(',').map(s => s.trim()).filter(Boolean) : [];
             const minFollowers = parseFloat(document.getElementById('minFollowers').value) || 0;
             const maxFollowers = parseFloat(document.getElementById('maxFollowers').value) || Infinity;
-            const minFollowing = parseFloat(document.getElementById('minFollowing').value) || 0;
-            const maxFollowing = parseFloat(document.getElementById('maxFollowing').value) || Infinity;
 
             filteredData = allData.filter(item => {
                 const matchesSearch = !searchTerm || 
                     item.userName.toLowerCase().includes(searchTerm) ||
                     (item.Description && item.Description.toLowerCase().includes(searchTerm));
-                
-                const matchesCategory = !category || item.Category === category;
-                
-                const matchesFollowers = item.followersCount >= minFollowers && item.followersCount <= maxFollowers;
-                const matchesFollowing = item.followsCount >= minFollowing && item.followsCount <= maxFollowing;
 
-                return matchesSearch && matchesCategory && matchesFollowers && matchesFollowing;
+                // Category filter: if no terms, match all; else, match if any term is contained in the category (case-insensitive)
+                const categoryValue = (item.Category || '').toLowerCase();
+                const matchesCategory = categoryTerms.length === 0 || categoryTerms.some(term => categoryValue.includes(term));
+
+                const matchesFollowers = item.followersCount >= minFollowers && item.followersCount <= maxFollowers;
+
+                return matchesSearch && matchesCategory && matchesFollowers;
             });
 
             // Apply sorting
             const sortBy = document.getElementById('sortBy').value;
-            filteredData.sort((a, b) => {
-                switch (sortBy) {
-                    case 'followers_desc':
-                        return b.followersCount - a.followersCount;
-                    case 'followers_asc':
-                        return a.followersCount - b.followersCount;
-                    case 'username_asc':
-                        return a.userName.localeCompare(b.userName);
-                    case 'username_desc':
-                        return b.userName.localeCompare(a.userName);
-                    case 'following_desc':
-                        return b.followsCount - a.followsCount;
-                    case 'following_asc':
-                        return a.followsCount - b.followsCount;
-                    default:
-                        return 0;
-                }
-            });
+            if (sortBy === 'original') {
+                filteredData.sort((a, b) => {
+                    const keyA = a.userName + '___' + a.instagram_link;
+                    const keyB = b.userName + '___' + b.instagram_link;
+                    return (originalOrderMap.get(keyA) ?? 0) - (originalOrderMap.get(keyB) ?? 0);
+                });
+            } else {
+                filteredData.sort((a, b) => {
+                    switch (sortBy) {
+                        case 'followers_desc':
+                            return b.followersCount - a.followersCount;
+                        case 'followers_asc':
+                            return a.followersCount - b.followersCount;
+                        case 'username_asc':
+                            return a.userName.localeCompare(b.userName);
+                        case 'username_desc':
+                            return b.userName.localeCompare(a.userName);
+                        case 'following_desc':
+                            return b.followsCount - a.followsCount;
+                        case 'following_asc':
+                            return a.followsCount - b.followsCount;
+                        default:
+                            return 0;
+                    }
+                });
+            }
 
             currentPage = 1;
             renderData();
@@ -672,8 +686,6 @@
             document.getElementById('categoryFilter').value = '';
             document.getElementById('minFollowers').value = '';
             document.getElementById('maxFollowers').value = '';
-            document.getElementById('minFollowing').value = '';
-            document.getElementById('maxFollowing').value = '';
             document.getElementById('sortBy').value = 'followers_desc';
             
             applyFilters();
@@ -690,11 +702,9 @@
 
         // Add event listeners for real-time filtering
         document.getElementById('searchInput').addEventListener('input', applyFilters);
-        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+        document.getElementById('categoryFilter').addEventListener('input', applyFilters);
         document.getElementById('minFollowers').addEventListener('input', applyFilters);
         document.getElementById('maxFollowers').addEventListener('input', applyFilters);
-        document.getElementById('minFollowing').addEventListener('input', applyFilters);
-        document.getElementById('maxFollowing').addEventListener('input', applyFilters);
 
         // Load data when page loads
         window.addEventListener('load', loadData);
