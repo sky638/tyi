@@ -416,7 +416,7 @@ let originalOrderMap = new Map();
         const itemsPerPage = 50;
 
         // URL to your JSON data file (local path for static hosting)
-        const DATA_URL = 'merged_instagram_data_labeled.json';
+        const DATA_URL = 'database_mini.json';
 
         async function loadData() {
             updateStatus('Connecting to data source...');
@@ -431,25 +431,50 @@ let originalOrderMap = new Map();
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
+                const text = await response.text();
                 updateStatus('Processing data...');
                 updateProgress(60);
 
-                const data = await response.json();
+                let data;
+                try {
+                    // Pre-process the text to handle NaN values
+                    const cleanedText = text.replace(/"account_badges":\s*NaN\s*,?/g, '"account_badges": null,');
+                    data = JSON.parse(cleanedText);
+                    if (!Array.isArray(data)) {
+                        throw new Error('Data is not an array');
+                    }
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    throw new Error('Failed to parse JSON data: ' + parseError.message);
+                }
                 
                 updateStatus('Finalizing...');
                 updateProgress(90);
 
                 // Clean and process the data
-                allData = data.filter(item => item && item.userName).map((item, idx) => {
+                allData = data.filter(item => {
+                    // Only include items that have required fields
+                    return item && 
+                           typeof item === 'object' && 
+                           (item.userName || item.instagram_link) &&
+                           Object.keys(item).length > 0;
+                }).map((item, idx) => {
                     const obj = {
                         instagram_link: item.instagram_link || '',
                         userName: item.userName || '',
                         Category: item.Category || 'Uncategorized',
                         Description: item.Description || '',
-                        followersCount: parseFloat(item.followersCount) || 0,
-                        followsCount: parseFloat(item.followsCount) || 0
+                        followersCount: item.followersCount ? parseFloat(item.followersCount) : 0,
+                        followsCount: item.followsCount ? parseFloat(item.followsCount) : 0,
+                        followed_by: Array.isArray(item.followed_by) ? item.followed_by : [],
+                        is_verified: Boolean(item.is_verified),
+                        profile_pic_url: item.profile_pic_url || '',
+                        full_name: item.full_name || ''
                     };
-                    originalOrderMap.set(obj.userName + '___' + obj.instagram_link, idx);
+                    // Only add to originalOrderMap if we have a valid key
+                    if (obj.userName || obj.instagram_link) {
+                        originalOrderMap.set(obj.userName + '___' + obj.instagram_link, idx);
+                    }
                     return obj;
                 });
 
