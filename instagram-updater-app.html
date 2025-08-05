@@ -765,19 +765,74 @@
         }
 
         async function saveToGitHub(updatedRecords, originalSha) {
+            // Create JSON content with proper UTF-8 handling
             const content = JSON.stringify(updatedRecords, null, 2);
+            
+            // Validate JSON is complete
+            if (!content.endsWith(']')) {
+                throw new Error('JSON generation failed - missing closing bracket');
+            }
+            
+            log(`Generated JSON content: ${(content.length / 1024 / 1024).toFixed(2)} MB`, 'info');
+            
+            // Check GitHub file size limits (100MB for API)
+            if (content.length > 100 * 1024 * 1024) {
+                throw new Error('File too large for GitHub API (>100MB). Consider splitting the database.');
+            }
+            
             const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
-
             const commitMessage = `Update Instagram database - ${new Date().toISOString()} - ${stats.added} added, ${stats.updated} updated`;
 
-            await githubAPI(endpoint, 'PUT', {
-                message: commitMessage,
-                content: btoa(unescape(encodeURIComponent(content))),
-                sha: originalSha,
-                branch: CONFIG.github.branch
-            });
+            try {
+                // FIXED: Proper Unicode-safe base64 encoding
+                function unicodeSafeBase64(str) {
+                    // Convert string to UTF-8 bytes, then to base64
+                    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+                        return String.fromCharCode('0x' + p1);
+                    }));
+                }
+                
+                const base64String = unicodeSafeBase64(content);
+                log('Content encoded with Unicode-safe base64', 'success');
+                
+                await githubAPI(endpoint, 'PUT', {
+                    message: commitMessage,
+                    content: base64String,
+                    sha: originalSha,
+                    branch: CONFIG.github.branch
+                });
 
-            log('Database saved successfully!', 'success');
+                log('Database saved successfully!', 'success');
+                
+            } catch (error) {
+                log(`Encoding error: ${error.message}`, 'error');
+                
+                // Alternative method using Uint8Array for complex Unicode
+                try {
+                    log('Trying TextEncoder method...', 'warning');
+                    
+                    const encoder = new TextEncoder();
+                    const uint8Array = encoder.encode(content);
+                    
+                    // Convert Uint8Array to base64
+                    let binary = '';
+                    uint8Array.forEach(byte => {
+                        binary += String.fromCharCode(byte);
+                    });
+                    const base64String = btoa(binary);
+                    
+                    await githubAPI(endpoint, 'PUT', {
+                        message: commitMessage,
+                        content: base64String,
+                        sha: originalSha,
+                        branch: CONFIG.github.branch
+                    });
+                    
+                    log('Database saved with TextEncoder method', 'success');
+                } catch (fallbackError) {
+                    throw new Error(`All encoding methods failed: ${fallbackError.message}`);
+                }
+            }
         }
 
         // 🎯 EVENT LISTENERS
