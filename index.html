@@ -36,6 +36,24 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
+        .test-mode-banner {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+            color: white;
+            padding: 15px;
+            margin: -10px -10px 20px -10px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
         .followers-section {
             background: white;
             border-radius: 20px;
@@ -387,6 +405,11 @@
             <h1>The Young Internet</h1>
         </div>
 
+        <!-- Test mode banner -->
+        <div class="test-mode-banner" id="testModeBanner" style="display: none;">
+            🔍 <strong>PREVIEW MODE</strong> - You are viewing updated data that hasn't been saved to the database yet
+        </div>
+
         <div class="load-notice" id="loadNotice">
             🚀 <strong>Loading Data:</strong> Fetching your Instagram dataset...
             <div class="progress-bar">
@@ -621,17 +644,28 @@
             updateProgress(10);
 
             try {
-                updateStatus('Downloading data...');
-                updateProgress(30);
+                let text;
+                
+                // Check if we're in test mode and have test data in sessionStorage
+                if (isTestMode && sessionStorage.getItem('testDatabaseData')) {
+                    updateStatus('Loading preview data...');
+                    updateProgress(30);
+                    text = sessionStorage.getItem('testDatabaseData');
+                    updateStatus('Processing preview data...');
+                    updateProgress(60);
+                } else {
+                    updateStatus('Downloading data...');
+                    updateProgress(30);
 
-                const response = await fetch(DATA_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const response = await fetch(DATA_URL);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    text = await response.text();
+                    updateStatus('Processing data...');
+                    updateProgress(60);
                 }
-
-                const text = await response.text();
-                updateStatus('Processing data...');
-                updateProgress(60);
 
                 let data;
                 try {
@@ -676,12 +710,19 @@
                     return obj;
                 });
 
-                updateStatus('Data loaded successfully!');
+                updateStatus(isTestMode && sessionStorage.getItem('testDatabaseData') ? 
+                    'Preview data loaded successfully! 🔍' : 'Data loaded successfully!');
                 updateProgress(100);
 
                 // Initialize the app
                 setTimeout(() => {
                     document.getElementById('loadNotice').style.display = 'none';
+                    
+                    // Show test mode banner if we're in test mode with preview data
+                    if (isTestMode && sessionStorage.getItem('testDatabaseData')) {
+                        document.getElementById('testModeBanner').style.display = 'block';
+                    }
+                    
                     populateCategories();
                     updateStats();
                     updatePageRankScores(); // Calculate initial PageRank scores

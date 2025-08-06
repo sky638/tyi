@@ -140,6 +140,10 @@
             background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
         }
 
+        .btn.preview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
         .log {
             background: #1a1a1a;
             color: #00ff00;
@@ -264,6 +268,9 @@
                 <button class="btn" id="previewBtn" disabled onclick="previewChanges()">
                     🔍 Preview Changes
                 </button>
+                <button class="btn preview" id="previewSiteBtn" disabled onclick="previewSite()">
+                    👁️ Preview Site
+                </button>
                 <button class="btn success" id="updateBtn" disabled onclick="updateDatabase()">
                     ✅ Update Database
                 </button>
@@ -300,6 +307,7 @@
         const fileName = document.getElementById('fileName');
         const recordCount = document.getElementById('recordCount');
         const previewBtn = document.getElementById('previewBtn');
+        const previewSiteBtn = document.getElementById('previewSiteBtn');
         const updateBtn = document.getElementById('updateBtn');
         const results = document.getElementById('results');
         const log = document.getElementById('log');
@@ -464,9 +472,53 @@
                 previewData = processedRecords;
                 showPreview(newRecords, updatedRecords);
                 updateBtn.disabled = false;
+                previewSiteBtn.disabled = false;
                 
             } catch (error) {
                 logMessage(`❌ Preview failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function previewSite() {
+            if (!previewData) {
+                logMessage('❌ No preview data. Run preview first.', 'error');
+                return;
+            }
+
+            logMessage('🌐 Creating site preview...', 'info');
+
+            try {
+                // Create a temporary database file for preview
+                const testData = JSON.stringify(previewData, null, 2);
+                const blob = new Blob([testData], { type: 'application/json' });
+                
+                // Create a temporary URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Store the URL for cleanup later
+                window.testDataUrl = url;
+                
+                // Create a data URL that can be accessed by the main site
+                const dataUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(testData)));
+                
+                // Open the main site in test mode with the preview data
+                const testUrl = `${window.location.origin}${window.location.pathname.replace('database_updater_simple.html', 'index.html')}?test=true`;
+                
+                // Store the test data in sessionStorage so the main site can access it
+                sessionStorage.setItem('testDatabaseData', testData);
+                
+                // Open in a new tab/window
+                const newWindow = window.open(testUrl, '_blank');
+                
+                if (newWindow) {
+                    logMessage('✅ Site preview opened in new tab', 'success');
+                    logMessage('💡 The preview uses your updated data without affecting the live database', 'info');
+                } else {
+                    logMessage('❌ Failed to open preview. Please allow popups and try again.', 'error');
+                }
+                
+            } catch (error) {
+                logMessage(`❌ Preview site failed: ${error.message}`, 'error');
             }
         }
 
@@ -654,6 +706,7 @@
             fileInfo.style.display = 'none';
             results.style.display = 'none';
             previewBtn.disabled = true;
+            previewSiteBtn.disabled = true;
             updateBtn.disabled = true;
             
             logMessage('🗑️ Cleared all data', 'info');
