@@ -434,7 +434,9 @@
                 <div class="sort-controls">
                     <label for="sortBy">Sort by:</label>
                     <select id="sortBy" onchange="applyFilters()">
-                        <option value="original">Original</option>
+                        <option value="pagerank_desc">PageRank (High to Low)</option>
+                        <option value="pagerank_asc">PageRank (Low to High)</option>
+                        <option value="original">Original Order</option>
                         <option value="followers_desc">Followers (High to Low)</option>
                         <option value="followers_asc">Followers (Low to High)</option>
                         <option value="username_asc">Username (A-Z)</option>
@@ -456,11 +458,134 @@ let allData = [];
 let filteredData = [];
 let selectedFollowers = new Set(); // Track which followers are selected for filtering
 let originalOrderMap = new Map();
-        let currentPage = 1;
-        const itemsPerPage = 50;
-
-        // URL to your JSON data file (local path for static hosting)
+let pageRankScores = new Map(); // Store PageRank scores for each account
+let currentPage = 1;
+const itemsPerPage = 50;        // URL to your JSON data file (local path for static hosting)
         const DATA_URL = 'database_mini.json';
+
+        function calculatePageRank(selectedFollowersSet = null) {
+            console.log('=== PageRank Calculation Start ===');
+            console.log('Selected followers:', selectedFollowersSet ? Array.from(selectedFollowersSet) : 'null');
+            
+            // Build the graph based on followed_by relationships
+            const graph = new Map();
+            const allUsernames = new Set();
+            
+            // Initialize graph and collect all usernames
+            allData.forEach(item => {
+                if (item.userName) {
+                    allUsernames.add(item.userName);
+                    graph.set(item.userName, new Set());
+                }
+            });
+            
+            console.log('Initial usernames in dataset:', allUsernames.size);
+            
+            // Build the follower graph
+            let relationshipsProcessed = 0;
+            allData.forEach(item => {
+                if (item.followed_by && Array.isArray(item.followed_by)) {
+                    item.followed_by.forEach(follower => {
+                        // If we have selected followers, only consider their connections
+                        // If no followers are selected (null or empty set), consider ALL relationships
+                        const shouldInclude = selectedFollowersSet === null || 
+                                            selectedFollowersSet.size === 0 || 
+                                            selectedFollowersSet.has(follower);
+                        
+                        if (shouldInclude) {
+                            relationshipsProcessed++;
+                            // Ensure the follower exists in the graph
+                            if (!graph.has(follower)) {
+                                graph.set(follower, new Set());
+                                allUsernames.add(follower);
+                            }
+                            // Add the relationship: follower -> item.userName
+                            graph.get(follower).add(item.userName);
+                        }
+                    });
+                }
+            });
+            
+            console.log('Relationships processed:', relationshipsProcessed);
+            console.log('Total nodes in graph:', allUsernames.size);
+            
+            const userList = Array.from(allUsernames);
+            const n = userList.length;
+            
+            if (n === 0) return new Map();
+            
+            // Initialize PageRank scores
+            const scores = new Map();
+            const newScores = new Map();
+            userList.forEach(user => {
+                scores.set(user, 1.0 / n);
+                newScores.set(user, 0);
+            });
+            
+            // PageRank parameters
+            const dampingFactor = 0.85;
+            const iterations = 50;
+            const tolerance = 1e-6;
+            
+            // Run PageRank algorithm
+            for (let iter = 0; iter < iterations; iter++) {
+                let totalDiff = 0;
+                
+                // Reset new scores
+                userList.forEach(user => newScores.set(user, (1 - dampingFactor) / n));
+                
+                // Calculate new scores
+                userList.forEach(fromUser => {
+                    const outLinks = graph.get(fromUser) || new Set();
+                    const outDegree = outLinks.size;
+                    
+                    if (outDegree > 0) {
+                        const contribution = (dampingFactor * scores.get(fromUser)) / outDegree;
+                        outLinks.forEach(toUser => {
+                            newScores.set(toUser, newScores.get(toUser) + contribution);
+                        });
+                    }
+                });
+                
+                // Check for convergence and update scores
+                userList.forEach(user => {
+                    const diff = Math.abs(newScores.get(user) - scores.get(user));
+                    totalDiff += diff;
+                    scores.set(user, newScores.get(user));
+                });
+                
+                if (totalDiff < tolerance) {
+                    console.log(`PageRank converged after ${iter + 1} iterations`);
+                    break;
+                }
+            }
+            
+            // Normalize scores to 0-100 range for better display
+            const maxScore = Math.max(...scores.values());
+            const minScore = Math.min(...scores.values());
+            const range = maxScore - minScore;
+            
+            if (range > 0) {
+                scores.forEach((score, user) => {
+                    scores.set(user, ((score - minScore) / range) * 100);
+                });
+            }
+            
+            // Log top 5 scores for debugging
+            const topScores = Array.from(scores.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+            console.log('Top 5 PageRank scores:', topScores);
+            console.log('=== PageRank Calculation End ===');
+            
+            return scores;
+        }
+
+        function updatePageRankScores() {
+            pageRankScores = calculatePageRank(selectedFollowers);
+            const contextMsg = selectedFollowers.size === 0 ? 'all relationships' : `${selectedFollowers.size} selected followers`;
+            console.log(`Calculated PageRank for ${pageRankScores.size} users using ${contextMsg}`);
+        }
 
         async function loadData() {
             updateStatus('Connecting to data source...');
@@ -530,6 +655,7 @@ let originalOrderMap = new Map();
                     document.getElementById('loadNotice').style.display = 'none';
                     populateCategories();
                     updateStats();
+                    updatePageRankScores(); // Calculate initial PageRank scores
                     filteredData = [...allData];
                     renderData();
                 }, 500);
@@ -616,6 +742,9 @@ let originalOrderMap = new Map();
             // Update the visual state
             updateFollowersSection();
             
+            // Recalculate PageRank based on selected followers
+            updatePageRankScores();
+            
             // Apply the new filter
             applyFilters();
         }
@@ -669,6 +798,14 @@ let originalOrderMap = new Map();
             } else {
                 filteredData.sort((a, b) => {
                     switch (sortBy) {
+                        case 'pagerank_desc':
+                            const scoreA = pageRankScores.get(a.userName) || 0;
+                            const scoreB = pageRankScores.get(b.userName) || 0;
+                            return scoreB - scoreA;
+                        case 'pagerank_asc':
+                            const scoreA_asc = pageRankScores.get(a.userName) || 0;
+                            const scoreB_asc = pageRankScores.get(b.userName) || 0;
+                            return scoreA_asc - scoreB_asc;
                         case 'followers_desc':
                             return b.followersCount - a.followersCount;
                         case 'followers_asc':
@@ -760,11 +897,14 @@ let originalOrderMap = new Map();
             document.getElementById('categoryFilter').value = '';
             document.getElementById('minFollowers').value = '';
             document.getElementById('maxFollowers').value = '';
-            document.getElementById('sortBy').value = 'followers_desc';
+            document.getElementById('sortBy').value = 'pagerank_desc';
             
             // Clear selected followers
             selectedFollowers.clear();
             updateFollowersSection();
+            
+            // Recalculate PageRank for all accounts
+            updatePageRankScores();
             
             applyFilters();
         }
@@ -783,6 +923,7 @@ let originalOrderMap = new Map();
             const followingText = item.followsCount > 0 ? formatNumber(item.followsCount) : 'N/A';
             const category = item.Category && item.Category !== 'null' ? item.Category : 'Uncategorized';
             const description = item.Description || 'No description available';
+            const pageRankScore = pageRankScores.get(item.userName) || 0;
 
             return `
                 <div class="data-card">
@@ -795,6 +936,8 @@ let originalOrderMap = new Map();
                     <div class="meta-info">
                         <div>
                             <span>Following: ${followingText}</span>
+                            <span>•</span>
+                            <span>PageRank: ${pageRankScore.toFixed(1)}</span>
                             <span>•</span>
                             <span><a href="${item.instagram_link}" target="_blank">View Profile</a></span>
                         </div>
