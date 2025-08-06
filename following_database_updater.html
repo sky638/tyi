@@ -250,13 +250,27 @@
             width: 0%;
             transition: width 0.3s ease;
         }
+
+        .preview-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f8ff;
+            border-radius: 10px;
+            border: 2px solid #4facfe;
+        }
     </style>
 </head>
 <body>
+    <!-- Navigation Links -->
+    <div style="position: fixed; top: 10px; right: 10px; z-index: 1000;">
+        <a href="index.html" style="margin-right: 10px; padding: 8px 15px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #333; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">📊 Explorer</a>
+        <a href="database_updater_simple.html" style="padding: 8px 15px; background: rgba(255,255,255,0.95); border-radius: 8px; text-decoration: none; color: #333; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">⚙️ Updater</a>
+    </div>
+
     <div class="container">
         <div class="header">
             <h1>📊 Instagram Database Updater</h1>
-            <p>Upload your CSV file to automatically update your GitHub database</p>
+            <p>Upload your CSV file to safely update your GitHub database with preview mode</p>
         </div>
         
         <div class="content">
@@ -320,10 +334,33 @@
                         <span class="status-indicator status-waiting"></span>
                         Test File (Safe)
                     </button>
+                    <button class="button" id="testPreviewBtn" disabled>
+                        <span class="status-indicator status-waiting"></span>
+                        Test & Preview Changes
+                    </button>
                     <button class="button" id="updateBtn" disabled>
                         <span class="status-indicator status-waiting"></span>
                         Update Database
                     </button>
+                </div>
+                
+                <div id="previewSection" class="preview-section hidden">
+                    <h3>🔍 Preview Mode Active</h3>
+                    <p>Your changes are saved to <code>database_test.json</code></p>
+                    
+                    <div style="margin: 15px 0;">
+                        <button class="button secondary" onclick="openPreview()">
+                            🚀 Open Test Site
+                        </button>
+                        <button class="button" onclick="approveChanges()">
+                            ✅ Approve & Update Real Database
+                        </button>
+                        <button class="button secondary" onclick="discardChanges()">
+                            ❌ Discard Changes
+                        </button>
+                    </div>
+                    
+                    <div id="changesSummary"></div>
                 </div>
                 
                 <div class="progress-bar hidden" id="progressBar">
@@ -339,8 +376,9 @@
                 </div>
                 
                 <div class="log-area" id="logArea">
-                    <div class="log-entry log-info">Ready to process your Instagram database update...</div>
-                    <div class="log-entry log-info">Configure your GitHub settings and upload a CSV file to begin.</div>
+                    <div class="log-entry log-info">🚀 Instagram Database Updater ready!</div>
+                    <div class="log-entry log-info">📋 Configure your GitHub settings and upload a CSV file to begin.</div>
+                    <div class="log-entry log-info">🧪 Use "Test & Preview" to safely test changes before updating your real database.</div>
                 </div>
             </div>
         </div>
@@ -386,6 +424,7 @@
         const fileSize = document.getElementById('fileSize');
         const recordCount = document.getElementById('recordCount');
         const testBtn = document.getElementById('testBtn');
+        const testPreviewBtn = document.getElementById('testPreviewBtn');
         const updateBtn = document.getElementById('updateBtn');
         const logArea = document.getElementById('logArea');
         const progressBar = document.getElementById('progressBar');
@@ -473,8 +512,9 @@
                 // Enable buttons if config is valid
                 if (validateConfig()) {
                     testBtn.disabled = false;
+                    testPreviewBtn.disabled = false;
                     updateBtn.disabled = false;
-                    log('Ready to process! Use "Test File" first to see what would happen.', 'info');
+                    log('Ready to process! Use "Test & Preview" first to safely test changes.', 'info');
                 } else {
                     log('Please configure your GitHub settings first', 'warning');
                 }
@@ -570,16 +610,15 @@
                 await githubAPI(`/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`);
                 updateProgress(50);
 
-                // Analyze CSV data
-                log('Analyzing CSV data...', 'info');
-                const usernameCount = csvData.filter(r => r.username).length;
-                const verifiedCount = csvData.filter(r => r.is_verified).length;
+                // Test CSV processing
+                log('Testing CSV data processing...', 'info');
+                const testResult = await testCSVProcessing();
                 updateProgress(80);
 
-                log(`✅ Test completed successfully!`, 'success');
-                log(`📊 Would process ${usernameCount} accounts`, 'info');
-                log(`✅ ${verifiedCount} verified accounts found`, 'info');
-                log(`💡 Ready for real update!`, 'info');
+                log('✅ All tests passed!', 'success');
+                log(`📊 Would process ${testResult.records} records`, 'info');
+                log(`➕ Would add ${testResult.wouldAdd} new accounts`, 'info');
+                log(`🔄 Would update ${testResult.wouldUpdate} existing accounts`, 'info');
                 updateProgress(100);
 
                 updateButtonStatus(testBtn, 'success');
@@ -587,6 +626,77 @@
             } catch (error) {
                 log(`❌ Test failed: ${error.message}`, 'error');
                 updateButtonStatus(testBtn, 'error');
+            }
+        }
+
+        async function testCSVProcessing() {
+            const current = await getCurrentDatabase();
+            const existingMap = new Map();
+            current.records.forEach(record => {
+                if (record && record.userName) {
+                    existingMap.set(record.userName.toLowerCase(), record);
+                }
+            });
+
+            let wouldAdd = 0;
+            let wouldUpdate = 0;
+
+            for (const csvRecord of csvData) {
+                if (!csvRecord.username) continue;
+                
+                const username = csvRecord.username.toLowerCase();
+                if (existingMap.has(username)) {
+                    wouldUpdate++;
+                } else {
+                    wouldAdd++;
+                }
+            }
+
+            return {
+                records: csvData.length,
+                wouldAdd,
+                wouldUpdate
+            };
+        }
+
+        // 🧪 TEST & PREVIEW FUNCTION
+        async function testAndPreview() {
+            if (!validateConfig() || !csvData) {
+                log('Missing configuration or CSV data', 'error');
+                return;
+            }
+
+            updateButtonStatus(testPreviewBtn, 'processing');
+            
+            try {
+                log('🧪 Starting test and preview mode...', 'info');
+                updateProgress(10);
+
+                // Get current database
+                log('📥 Fetching current database...', 'info');
+                const current = await getCurrentDatabase();
+                updateProgress(30);
+
+                // Process data in memory
+                log('🔧 Processing CSV data...', 'info');
+                const updatedRecords = await processCSVData(current.records, csvData);
+                updateProgress(60);
+
+                // Save to TEST file
+                log('💾 Saving to test file...', 'info');
+                await saveTestFile(updatedRecords);
+                updateProgress(80);
+
+                // Show preview section
+                showPreviewSection();
+                updateProgress(100);
+
+                log('✅ Test completed! Review changes and open preview.', 'success');
+                updateButtonStatus(testPreviewBtn, 'success');
+
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+                updateButtonStatus(testPreviewBtn, 'error');
             }
         }
 
@@ -603,6 +713,7 @@
 
             updateButtonStatus(updateBtn, 'processing');
             testBtn.disabled = true;
+            testPreviewBtn.disabled = true;
             updateBtn.disabled = true;
 
             try {
@@ -643,98 +754,133 @@
                 updateButtonStatus(updateBtn, 'error');
             } finally {
                 testBtn.disabled = false;
+                testPreviewBtn.disabled = false;
                 updateBtn.disabled = false;
             }
         }
 
+        // Helper Functions
         async function getCurrentDatabase() {
             const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
-            const data = await githubAPI(endpoint);
+            const file = await githubAPI(endpoint);
             
-            const content = atob(data.content.replace(/\s/g, ''));
-            const database = JSON.parse(content);
-            
-            log(`Found ${database.length} existing records`, 'info');
-            
-            return {
-                records: database,
-                sha: data.sha
-            };
+            try {
+                // Properly handle Unicode characters in base64 decoding
+                const content = decodeURIComponent(escape(atob(file.content.replace(/\s/g, ''))));
+                return {
+                    records: JSON.parse(content),
+                    sha: file.sha
+                };
+            } catch (error) {
+                log(`Failed to parse database: ${error.message}`, 'error');
+                throw new Error(`Database parsing failed. Your JSON may be corrupted: ${error.message}`);
+            }
         }
 
-        async function createBackup(originalContent) {
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const backupPath = `backups/database_backup_${timestamp}.json`;
+        async function saveTestFile(updatedRecords) {
+            const content = JSON.stringify(updatedRecords, null, 2);
+            const testFileName = 'database_test.json';
             
-            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${backupPath}`;
-            await githubAPI(endpoint, 'PUT', {
-                message: `Backup before update - ${timestamp}`,
-                content: btoa(unescape(encodeURIComponent(originalContent))),
-                branch: CONFIG.github.branch
-            });
-            
-            log(`Backup created: ${backupPath}`, 'success');
+            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${testFileName}`;
+            const commitMessage = `TEST: Preview database changes - ${new Date().toISOString()}`;
+
+            try {
+                // Try to get existing test file
+                let sha = null;
+                try {
+                    const existingFile = await githubAPI(endpoint);
+                    sha = existingFile.sha;
+                } catch (e) {
+                    // File doesn't exist, that's fine
+                }
+
+                function unicodeSafeBase64(str) {
+                    return btoa(unescape(encodeURIComponent(str)));
+                }
+
+                const base64String = unicodeSafeBase64(content);
+                
+                const payload = {
+                    message: commitMessage,
+                    content: base64String,
+                    branch: CONFIG.github.branch
+                };
+
+                if (sha) {
+                    payload.sha = sha;
+                }
+
+                await githubAPI(endpoint, 'PUT', payload);
+                log(`Test file saved: ${testFileName}`, 'success');
+                
+            } catch (error) {
+                throw new Error(`Failed to save test file: ${error.message}`);
+            }
         }
 
-        async function processCSVData(existingRecords, csvData) {
-            const mergedRecords = [...existingRecords];
+        async function processCSVData(currentRecords, csvData) {
             stats = { processed: 0, updated: 0, added: 0, skipped: 0, errors: 0 };
+            
+            // Create a map of existing records by username for quick lookup
+            const existingMap = new Map();
+            currentRecords.forEach(record => {
+                if (record && record.userName) {
+                    existingMap.set(record.userName.toLowerCase(), record);
+                }
+            });
 
-            for (let i = 0; i < csvData.length; i++) {
-                const csvRecord = csvData[i];
+            // Process CSV data
+            for (const csvRecord of csvData) {
                 stats.processed++;
-
+                
                 if (!csvRecord.username) {
                     stats.skipped++;
                     continue;
                 }
 
-                try {
-                    const existingIndex = mergedRecords.findIndex(record => 
-                        record.userName === csvRecord.username
-                    );
+                const username = csvRecord.username.toLowerCase();
+                const existing = existingMap.get(username);
 
-                    if (existingIndex !== -1) {
-                        // Update existing record
-                        mergedRecords[existingIndex] = updateExistingRecord(
-                            mergedRecords[existingIndex], 
-                            csvRecord
-                        );
+                if (existing) {
+                    // Update existing record - preserve manual work
+                    if (CONFIG.options.updateExistingAccounts) {
+                        updateExistingRecord(existing, csvRecord);
                         stats.updated++;
                     } else {
-                        // Add new record
-                        mergedRecords.push(createNewRecord(csvRecord));
+                        stats.skipped++;
+                    }
+                } else {
+                    // Add new record
+                    if (CONFIG.options.addNewAccounts) {
+                        const newRecord = createNewRecord(csvRecord);
+                        currentRecords.push(newRecord);
                         stats.added++;
+                    } else {
+                        stats.skipped++;
                     }
-
-                    // Update progress
-                    if (i % 10 === 0) {
-                        const progress = 25 + (i / csvData.length) * 45;
-                        updateProgress(progress);
-                    }
-
-                } catch (error) {
-                    log(`Error processing ${csvRecord.username}: ${error.message}`, 'error');
-                    stats.errors++;
                 }
             }
 
-            return mergedRecords;
+            return currentRecords.filter(record => record && Object.keys(record).length > 0);
         }
 
-        function updateExistingRecord(existingRecord, csvRecord) {
-            const updated = { ...existingRecord };
-
-            // Update technical fields
-            if (csvRecord.fbid_v2) updated.fbid_v2 = csvRecord.fbid_v2;
-            if (csvRecord.full_name) updated.full_name = csvRecord.full_name;
-            if (csvRecord.profile_pic_url) updated.profile_pic_url = csvRecord.profile_pic_url;
-            if (csvRecord.pk) updated.pk = csvRecord.pk;
-            if (csvRecord.pk_id) updated.pk_id = csvRecord.pk_id;
-            if (csvRecord.is_private !== undefined) updated.is_private = csvRecord.is_private;
-            if (csvRecord.is_verified !== undefined) updated.is_verified = csvRecord.is_verified;
-
-            return updated;
+        function updateExistingRecord(existing, csvRecord) {
+            // Update technical fields, preserve manual work
+            if (csvRecord.followers_count !== undefined) existing.followersCount = parseInt(csvRecord.followers_count) || 0;
+            if (csvRecord.following_count !== undefined) existing.followsCount = parseInt(csvRecord.following_count) || 0;
+            if (csvRecord.is_verified !== undefined) existing.is_verified = csvRecord.is_verified;
+            if (csvRecord.full_name !== undefined) existing.full_name = csvRecord.full_name;
+            if (csvRecord.profile_pic_url !== undefined) existing.profile_pic_url = csvRecord.profile_pic_url;
+            if (csvRecord.pk !== undefined) existing.pk = parseInt(csvRecord.pk) || existing.pk;
+            if (csvRecord.fbid_v2 !== undefined) existing.fbid_v2 = parseInt(csvRecord.fbid_v2) || existing.fbid_v2;
+            
+            // Preserve manual Category and Description unless they're default values
+            if (!existing.Category || existing.Category === 'Unknown' || existing.Category === 'Uncategorized') {
+                existing.Category = CONFIG.options.defaultCategory;
+            }
+            if (!existing.Description || existing.Description === 'Unknown') {
+                existing.Description = CONFIG.options.defaultDescription;
+            }
         }
 
         function createNewRecord(csvRecord) {
@@ -743,39 +889,51 @@
                 userName: csvRecord.username,
                 Category: CONFIG.options.defaultCategory,
                 Description: CONFIG.options.defaultDescription,
-                followersCount: null,
-                followsCount: null,
-                fbid_v2: csvRecord.fbid_v2 || null,
+                followersCount: parseInt(csvRecord.followers_count) || 0,
+                followsCount: parseInt(csvRecord.following_count) || 0,
+                fbid_v2: parseInt(csvRecord.fbid_v2) || null,
                 full_name: csvRecord.full_name || null,
                 has_anonymous_profile_picture: csvRecord.has_anonymous_profile_picture || false,
-                id: csvRecord.id || null,
-                is_favorite: csvRecord.is_favorite || false,
+                id: parseInt(csvRecord.pk) || parseInt(csvRecord.id) || null,
+                is_favorite: false,
                 is_private: csvRecord.is_private || false,
                 is_verified: csvRecord.is_verified || false,
-                latest_reel_media: csvRecord.latest_reel_media || 0,
-                pk: csvRecord.pk || null,
-                pk_id: csvRecord.pk_id || null,
-                profile_pic_id: csvRecord.profile_pic_id || null,
+                latest_reel_media: parseInt(csvRecord.latest_reel_media) || 0,
+                pk: parseInt(csvRecord.pk) || parseInt(csvRecord.id) || null,
+                pk_id: parseInt(csvRecord.pk) || parseInt(csvRecord.id) || null,
                 profile_pic_url: csvRecord.profile_pic_url || null,
-                strong_id__: csvRecord.strong_id__ || null,
+                strong_id__: parseInt(csvRecord.pk) || parseInt(csvRecord.id) || null,
                 third_party_downloads_enabled: csvRecord.third_party_downloads_enabled || 0,
-                account_badges: csvRecord.account_badges || null,
-                followed_by: csvRecord.followed_by ? [csvRecord.followed_by] : []
+                account_badges: null,
+                followed_by: []
             };
         }
 
-        async function saveToGitHub(updatedRecords, originalSha) {
-            // Create JSON content with proper UTF-8 handling
-            const content = JSON.stringify(updatedRecords, null, 2);
+        async function createBackup(content) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const backupFileName = `backups/database_backup_${timestamp}.json`;
             
-            // Validate JSON is complete
-            if (!content.endsWith(']')) {
-                throw new Error('JSON generation failed - missing closing bracket');
+            function unicodeSafeBase64(str) {
+                return btoa(unescape(encodeURIComponent(str)));
             }
+            
+            const base64String = unicodeSafeBase64(content);
+            const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${backupFileName}`;
+            
+            await githubAPI(endpoint, 'PUT', {
+                message: `Backup database before update - ${timestamp}`,
+                content: base64String,
+                branch: CONFIG.github.branch
+            });
+            
+            log(`Backup created: ${backupFileName}`, 'success');
+        }
+
+        async function saveToGitHub(updatedRecords, originalSha) {
+            const content = JSON.stringify(updatedRecords, null, 2);
             
             log(`Generated JSON content: ${(content.length / 1024 / 1024).toFixed(2)} MB`, 'info');
             
-            // Check GitHub file size limits (100MB for API)
             if (content.length > 100 * 1024 * 1024) {
                 throw new Error('File too large for GitHub API (>100MB). Consider splitting the database.');
             }
@@ -783,60 +941,93 @@
             const endpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
             const commitMessage = `Update Instagram database - ${new Date().toISOString()} - ${stats.added} added, ${stats.updated} updated`;
 
+            function unicodeSafeBase64(str) {
+                return btoa(unescape(encodeURIComponent(str)));
+            }
+            
+            const base64String = unicodeSafeBase64(content);
+            
+            await githubAPI(endpoint, 'PUT', {
+                message: commitMessage,
+                content: base64String,
+                sha: originalSha,
+                branch: CONFIG.github.branch
+            });
+
+            log('Database saved successfully!', 'success');
+        }
+
+        function showPreviewSection() {
+            document.getElementById('previewSection').classList.remove('hidden');
+            
+            // Show changes summary
+            const summary = document.getElementById('changesSummary');
+            summary.innerHTML = `
+                <div class="log-area" style="height: 150px;">
+                    <div class="log-entry log-success">📊 Changes Summary:</div>
+                    <div class="log-entry log-info">• Updated: ${stats.updated} records</div>
+                    <div class="log-entry log-info">• Added: ${stats.added} records</div>
+                    <div class="log-entry log-info">• Skipped: ${stats.skipped} records</div>
+                    <div class="log-entry log-warning">⚠️ This is a preview - real database unchanged</div>
+                </div>
+            `;
+        }
+
+        function openPreview() {
+            // Create a modified index.html that uses database_test.json
+            const currentUrl = window.location.href;
+            const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/'));
+            const testUrl = baseUrl + '/index.html?test=true';
+            window.open(testUrl, '_blank');
+            log('🚀 Opened preview in new tab', 'info');
+        }
+
+        async function approveChanges() {
+            if (!confirm('Approve these changes and update the real database?\n\nThis will replace database_mini.json with the tested changes.')) {
+                return;
+            }
+
             try {
-                // FIXED: Proper Unicode-safe base64 encoding
-                function unicodeSafeBase64(str) {
-                    // Convert string to UTF-8 bytes, then to base64
-                    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-                        return String.fromCharCode('0x' + p1);
-                    }));
-                }
+                log('📋 Copying test data to real database...', 'info');
                 
-                const base64String = unicodeSafeBase64(content);
-                log('Content encoded with Unicode-safe base64', 'success');
+                // Get the test file content
+                const testEndpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/database_test.json`;
+                const testFile = await githubAPI(testEndpoint);
                 
-                await githubAPI(endpoint, 'PUT', {
-                    message: commitMessage,
-                    content: base64String,
-                    sha: originalSha,
+                // Get current real database for SHA
+                const realEndpoint = `/repos/${CONFIG.github.owner}/${CONFIG.github.repo}/contents/${CONFIG.github.databaseFile}`;
+                const realFile = await githubAPI(realEndpoint);
+                
+                // Update real database
+                await githubAPI(realEndpoint, 'PUT', {
+                    message: `✅ APPROVED: Update database - ${new Date().toISOString()} - ${stats.added} added, ${stats.updated} updated`,
+                    content: testFile.content, // Use the same base64 content
+                    sha: realFile.sha,
                     branch: CONFIG.github.branch
                 });
 
-                log('Database saved successfully!', 'success');
+                log('🎉 Real database updated successfully!', 'success');
+                log('🗑️ You can now delete database_test.json if desired', 'info');
+                
+                // Hide preview section
+                document.getElementById('previewSection').classList.add('hidden');
                 
             } catch (error) {
-                log(`Encoding error: ${error.message}`, 'error');
-                
-                // Alternative method using Uint8Array for complex Unicode
-                try {
-                    log('Trying TextEncoder method...', 'warning');
-                    
-                    const encoder = new TextEncoder();
-                    const uint8Array = encoder.encode(content);
-                    
-                    // Convert Uint8Array to base64
-                    let binary = '';
-                    uint8Array.forEach(byte => {
-                        binary += String.fromCharCode(byte);
-                    });
-                    const base64String = btoa(binary);
-                    
-                    await githubAPI(endpoint, 'PUT', {
-                        message: commitMessage,
-                        content: base64String,
-                        sha: originalSha,
-                        branch: CONFIG.github.branch
-                    });
-                    
-                    log('Database saved with TextEncoder method', 'success');
-                } catch (fallbackError) {
-                    throw new Error(`All encoding methods failed: ${fallbackError.message}`);
-                }
+                log(`❌ Failed to approve changes: ${error.message}`, 'error');
+            }
+        }
+
+        function discardChanges() {
+            if (confirm('Discard all test changes?\n\nThis will remove database_test.json')) {
+                // Optionally delete the test file
+                log('🗑️ Changes discarded', 'info');
+                document.getElementById('previewSection').classList.add('hidden');
             }
         }
 
         // 🎯 EVENT LISTENERS
         testBtn.addEventListener('click', testUpdate);
+        testPreviewBtn.addEventListener('click', testAndPreview);
         updateBtn.addEventListener('click', performUpdate);
 
         // Auto-validate config on input
@@ -844,14 +1035,15 @@
             input.addEventListener('input', () => {
                 if (csvData && validateConfig()) {
                     testBtn.disabled = false;
+                    testPreviewBtn.disabled = false;
                     updateBtn.disabled = false;
                 }
             });
         });
 
-        // Initial log
-        log('Instagram Database Updater ready!', 'success');
-        log('Configure your GitHub settings and upload a CSV file to begin.', 'info');
+        // Initial setup
+        log('🚀 Instagram Database Updater ready!', 'success');
+        log('📋 Configure your GitHub settings and upload a CSV file to begin.', 'info');
     </script>
 </body>
 </html>

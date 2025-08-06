@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Instagram Database Updater</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 8px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+        }
+
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .file-upload {
+            border: 3px dashed #4facfe;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            background: rgba(79, 172, 254, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            background: rgba(79, 172, 254, 0.1);
+        }
+
+        .file-upload.dragover {
+            background: rgba(79, 172, 254, 0.15);
+            transform: scale(1.02);
+        }
+
+        .file-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, #ff4757 0%, #ff3742 100%);
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #2ed573 0%, #1e90ff 100%);
+        }
+
+        .log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 3px;
+        }
+
+        .log-success { color: #00ff00; }
+        .log-error { color: #ff4444; }
+        .log-warning { color: #ffaa00; }
+        .log-info { color: #4facfe; }
+
+        .results {
+            display: none;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .navigation {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+
+        .navigation a {
+            margin-left: 10px;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 8px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .comparison-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        .new-record {
+            background: #e8f5e8;
+        }
+
+        .updated-record {
+            background: #fff3cd;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="navigation">
+        <a href="index.html">📊 Explorer</a>
+        <a href="database_updater_simple.html">⚙️ Updater</a>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Simple Database Updater</h1>
+            <p>Upload CSV → Preview Changes → Update Database</p>
+        </div>
+        
+        <div class="content">
+            <!-- Step 1: GitHub Config -->
+            <div class="section">
+                <h3>🔧 GitHub Configuration</h3>
+                <div class="input-group">
+                    <label for="github-token">GitHub Personal Access Token:</label>
+                    <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <small style="color: #666;">Need a token? Go to GitHub Settings → Developer settings → Personal access tokens</small>
+            </div>
+
+            <!-- Step 2: Upload CSV -->
+            <div class="section">
+                <h3>📁 Upload CSV File</h3>
+                <div class="file-upload" id="fileUpload">
+                    <div style="font-size: 2em; margin-bottom: 10px;">📄</div>
+                    <div>Drop your CSV file here or click to browse</div>
+                    <small style="color: #666;">Supports Instagram following data exports</small>
+                </div>
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                <div class="file-info" id="fileInfo">
+                    <strong>File:</strong> <span id="fileName"></span><br>
+                    <strong>Records:</strong> <span id="recordCount"></span>
+                </div>
+            </div>
+
+            <!-- Step 3: Process -->
+            <div class="section">
+                <h3>🚀 Actions</h3>
+                <button class="btn" id="previewBtn" disabled onclick="previewChanges()">
+                    🔍 Preview Changes
+                </button>
+                <button class="btn success" id="updateBtn" disabled onclick="updateDatabase()">
+                    ✅ Update Database
+                </button>
+                <button class="btn danger" onclick="clearAll()">
+                    🗑️ Clear All
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div class="results" id="results">
+                <h3>📊 Preview Results</h3>
+                <div id="summary"></div>
+                <div id="changes"></div>
+            </div>
+
+            <!-- Log -->
+            <div class="log" id="log">
+                <div class="log-entry log-info">[Ready] Simple Database Updater loaded 🚀</div>
+                <div class="log-entry log-info">[Info] Add your GitHub token and upload a CSV file to start</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let csvData = null;
+        let currentDatabase = null;
+        let previewData = null;
+
+        // DOM elements
+        const fileUpload = document.getElementById('fileUpload');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const recordCount = document.getElementById('recordCount');
+        const previewBtn = document.getElementById('previewBtn');
+        const updateBtn = document.getElementById('updateBtn');
+        const results = document.getElementById('results');
+        const log = document.getElementById('log');
+
+        // Logging function
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            console.log(`${type.toUpperCase()}: ${message}`);
+        }
+
+        // File upload handling
+        fileUpload.addEventListener('click', () => fileInput.click());
+        
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('dragover');
+        });
+        
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('dragover');
+        });
+        
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        async function handleFile(file) {
+            if (!file || !file.name.endsWith('.csv')) {
+                logMessage('Please select a CSV file', 'error');
+                return;
+            }
+
+            logMessage(`Loading file: ${file.name}`, 'info');
+            
+            try {
+                const text = await file.text();
+                csvData = parseCSV(text);
+                
+                fileName.textContent = file.name;
+                recordCount.textContent = `${csvData.length} records`;
+                fileInfo.style.display = 'block';
+                
+                previewBtn.disabled = false;
+                logMessage(`✅ Parsed ${csvData.length} CSV records`, 'success');
+                
+            } catch (error) {
+                logMessage(`❌ Error reading file: ${error.message}`, 'error');
+            }
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.replace(/"/g, '').trim());
+                const record = {};
+                
+                headers.forEach((header, index) => {
+                    let value = values[index] || '';
+                    
+                    // Convert booleans and numbers
+                    if (value === 'true') value = true;
+                    else if (value === 'false') value = false;
+                    else if (!isNaN(value) && value !== '') value = parseFloat(value);
+                    
+                    record[header] = value;
+                });
+                
+                if (record.username) {  // Only include records with username
+                    data.push(record);
+                }
+            }
+            
+            return data;
+        }
+
+        async function loadCurrentDatabase() {
+            logMessage('Loading current database...', 'info');
+            
+            try {
+                const response = await fetch('database_mini.json');
+                if (!response.ok) throw new Error('Database not found');
+                
+                currentDatabase = await response.json();
+                logMessage(`✅ Loaded database with ${currentDatabase.length} records`, 'success');
+                return currentDatabase;
+                
+            } catch (error) {
+                logMessage(`❌ Error loading database: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function previewChanges() {
+            if (!csvData) {
+                logMessage('❌ No CSV data loaded', 'error');
+                return;
+            }
+
+            logMessage('🔍 Generating preview...', 'info');
+            
+            try {
+                await loadCurrentDatabase();
+                
+                // Create lookup map for existing records
+                const existingMap = new Map();
+                currentDatabase.forEach(record => {
+                    if (record.userName) {
+                        existingMap.set(record.userName, record);
+                    }
+                });
+
+                const newRecords = [];
+                const updatedRecords = [];
+                const processedRecords = [];
+
+                // Process CSV data
+                csvData.forEach(csvRecord => {
+                    const username = csvRecord.username;
+                    const existing = existingMap.get(username);
+                    
+                    if (existing) {
+                        // Update existing record
+                        const updated = {
+                            ...existing,
+                            ...convertCSVToDBFormat(csvRecord)
+                        };
+                        updatedRecords.push({
+                            username,
+                            old: existing,
+                            new: updated
+                        });
+                        processedRecords.push(updated);
+                    } else {
+                        // New record
+                        const newRecord = convertCSVToDBFormat(csvRecord);
+                        newRecords.push(newRecord);
+                        processedRecords.push(newRecord);
+                    }
+                });
+
+                // Add unchanged existing records
+                currentDatabase.forEach(record => {
+                    if (record.userName && !csvData.find(csv => csv.username === record.userName)) {
+                        processedRecords.push(record);
+                    }
+                });
+
+                previewData = processedRecords;
+                showPreview(newRecords, updatedRecords);
+                updateBtn.disabled = false;
+                
+            } catch (error) {
+                logMessage(`❌ Preview failed: ${error.message}`, 'error');
+            }
+        }
+
+        function convertCSVToDBFormat(csvRecord) {
+            return {
+                instagram_link: `https://www.instagram.com/${csvRecord.username}/`,
+                userName: csvRecord.username,
+                Category: "Unknown", // You can enhance this mapping
+                Description: "Unknown",
+                followersCount: 0,
+                followsCount: 0,
+                fbid_v2: csvRecord.fbid_v2 || null,
+                full_name: csvRecord.full_name || null,
+                has_anonymous_profile_picture: csvRecord.has_anonymous_profile_picture === true,
+                id: csvRecord.id || null,
+                is_favorite: csvRecord.is_favorite === true,
+                is_private: csvRecord.is_private === true,
+                is_verified: csvRecord.is_verified === true,
+                latest_reel_media: csvRecord.latest_reel_media || 0,
+                pk: csvRecord.pk || null,
+                pk_id: csvRecord.pk_id || null,
+                profile_pic_id: csvRecord.profile_pic_id || null,
+                profile_pic_url: csvRecord.profile_pic_url || null,
+                strong_id__: csvRecord.strong_id__ || null,
+                third_party_downloads_enabled: csvRecord.third_party_downloads_enabled || 0,
+                account_badges: csvRecord.account_badges || null,
+                followed_by: csvRecord.followed_by ? [csvRecord.followed_by] : []
+            };
+        }
+
+        function showPreview(newRecords, updatedRecords) {
+            const summary = document.getElementById('summary');
+            const changes = document.getElementById('changes');
+            
+            summary.innerHTML = `
+                <div style="margin-bottom: 15px;">
+                    <strong>📊 Summary:</strong><br>
+                    🆕 New records: ${newRecords.length}<br>
+                    🔄 Updated records: ${updatedRecords.length}<br>
+                    📁 Total after update: ${previewData.length}
+                </div>
+            `;
+
+            let changesHTML = '';
+            
+            if (newRecords.length > 0) {
+                changesHTML += `<h4>🆕 New Records (${newRecords.length})</h4>`;
+                changesHTML += '<table class="comparison-table">';
+                changesHTML += '<tr><th>Username</th><th>Followed By</th></tr>';
+                newRecords.slice(0, 10).forEach(record => {
+                    const followedBy = record.followed_by && record.followed_by.length > 0 
+                        ? (Array.isArray(record.followed_by) ? record.followed_by.join(', ') : record.followed_by)
+                        : 'None';
+                    changesHTML += `<tr class="new-record">
+                        <td>${record.userName}</td>
+                        <td>${followedBy}</td>
+                    </tr>`;
+                });
+                if (newRecords.length > 10) {
+                    changesHTML += `<tr><td colspan="2">... and ${newRecords.length - 10} more</td></tr>`;
+                }
+                changesHTML += '</table>';
+            }
+
+            if (updatedRecords.length > 0) {
+                changesHTML += `<h4>🔄 Updated Records (${updatedRecords.length})</h4>`;
+                changesHTML += '<table class="comparison-table">';
+                changesHTML += '<tr><th>Username</th><th>Field</th><th>Old Value</th><th>New Value</th></tr>';
+                updatedRecords.slice(0, 10).forEach(update => {
+                    const username = update.username;
+                    let hasShownUsername = false;
+                    let hasChanges = false;
+                    
+                    // Check and show followed_by field differences
+                    const fields = [
+                        {key: 'followed_by', label: 'Followed By', format: (val) => {
+                            if (!val || val.length === 0) return 'None';
+                            return Array.isArray(val) ? val.join(', ') : val;
+                        }}
+                    ];
+                    
+                    fields.forEach(field => {
+                        const oldVal = update.old[field.key];
+                        const newVal = update.new[field.key];
+                        
+                        if (oldVal !== newVal) {
+                            const displayOld = field.format ? field.format(oldVal) : (oldVal || 'N/A');
+                            const displayNew = field.format ? field.format(newVal) : (newVal || 'N/A');
+                            
+                            changesHTML += `<tr class="updated-record">
+                                <td>${hasShownUsername ? '' : username}</td>
+                                <td>${field.label}</td>
+                                <td>${displayOld}</td>
+                                <td>${displayNew}</td>
+                            </tr>`;
+                            hasShownUsername = true;
+                            hasChanges = true;
+                        }
+                    });
+                    
+                    // If no visible changes, show that data was refreshed
+                    if (!hasChanges) {
+                        changesHTML += `<tr class="updated-record">
+                            <td>${username}</td>
+                            <td colspan="3" style="color:#666; font-style:italic;">Data refreshed (internal fields updated)</td>
+                        </tr>`;
+                    }
+                });
+                changesHTML += '</table>';
+            }
+
+            changes.innerHTML = changesHTML;
+            results.style.display = 'block';
+            
+            logMessage(`✅ Preview ready: ${newRecords.length} new, ${updatedRecords.length} updated`, 'success');
+        }
+
+        async function updateDatabase() {
+            const token = document.getElementById('github-token').value;
+            if (!token) {
+                logMessage('❌ GitHub token required', 'error');
+                return;
+            }
+
+            if (!previewData) {
+                logMessage('❌ No preview data. Run preview first.', 'error');
+                return;
+            }
+
+            logMessage('🚀 Updating database...', 'info');
+
+            try {
+                // Get current file info
+                const fileResponse = await fetch('https://api.github.com/repos/sky638/tyi/contents/database_mini.json', {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+
+                if (!fileResponse.ok) throw new Error('Failed to get current file');
+                const fileData = await fileResponse.json();
+
+                // Create updated content
+                const content = JSON.stringify(previewData, null, 2);
+                const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+                // Update file
+                const updateResponse = await fetch('https://api.github.com/repos/sky638/tyi/contents/database_mini.json', {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Update database - ${new Date().toISOString()}`,
+                        content: encodedContent,
+                        sha: fileData.sha
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    const error = await updateResponse.json();
+                    throw new Error(error.message || 'Update failed');
+                }
+
+                logMessage('✅ Database updated successfully!', 'success');
+                logMessage('🔄 Refresh the page to see changes', 'info');
+                
+                // Disable buttons
+                updateBtn.disabled = true;
+                previewBtn.disabled = true;
+
+            } catch (error) {
+                logMessage(`❌ Update failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearAll() {
+            csvData = null;
+            currentDatabase = null;
+            previewData = null;
+            
+            fileInfo.style.display = 'none';
+            results.style.display = 'none';
+            previewBtn.disabled = true;
+            updateBtn.disabled = true;
+            
+            logMessage('🗑️ Cleared all data', 'info');
+        }
+
+        // Initialize
+        logMessage('Ready to update your Instagram database! 🎯', 'success');
+    </script>
+</body>
+</html>
