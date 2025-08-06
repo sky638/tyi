@@ -1013,7 +1013,10 @@
                         </div>
                         ${item.followed_by.length > 0 ? `
                         <div>
-                            <span style="color: #444;">Followed by:</span> ${item.followed_by.map(follower => `<span class="follower-tag">@${follower}</span>`).join(' ')}
+                            <span style="color: #444;">Followed by:</span> ${item.followed_by.map(follower => {
+                                const isSelected = selectedFollowers.has(follower);
+                                return `<span class="follower-tag" style="${isSelected ? 'background: #28a745; color: white; font-weight: 600;' : ''}">@${follower}</span>`;
+                            }).join(' ')}
                         </div>` : ''}
                     </div>
                 </div>
