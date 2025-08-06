@@ -443,10 +443,22 @@
                     const existing = existingMap.get(username);
                     
                     if (existing) {
-                        // Update existing record
+                        // Update existing record - merge followed_by arrays instead of replacing
+                        const csvFormatted = convertCSVToDBFormat(csvRecord);
                         const updated = {
                             ...existing,
-                            ...convertCSVToDBFormat(csvRecord)
+                            ...csvFormatted,
+                            // Preserve existing follower counts (don't overwrite with CSV zeros)
+                            followersCount: existing.followersCount,
+                            followsCount: existing.followsCount,
+                            // Preserve existing category and description if they exist
+                            Category: existing.Category && existing.Category !== 'Uncategorized' ? existing.Category : csvFormatted.Category,
+                            Description: existing.Description && existing.Description !== 'No description available' ? existing.Description : csvFormatted.Description,
+                            // Merge followed_by arrays, removing duplicates
+                            followed_by: [...new Set([
+                                ...(existing.followed_by || []),
+                                ...(csvFormatted.followed_by || [])
+                            ])]
                         };
                         updatedRecords.push({
                             username,
