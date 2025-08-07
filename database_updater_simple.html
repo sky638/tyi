@@ -417,8 +417,20 @@
                     if (!response.ok) throw new Error('Failed to fetch from GitHub API');
                     
                     const fileData = await response.json();
-                    const content = atob(fileData.content);
-                    currentDatabase = JSON.parse(content);
+                    
+                    // Check if content is available (GitHub API has 1MB limit)
+                    if (!fileData.content || fileData.content === '') {
+                        logMessage('📦 File too large for Contents API, using download URL...', 'info');
+                        // Use the raw download URL for large files
+                        const downloadResponse = await fetch(fileData.download_url);
+                        if (!downloadResponse.ok) throw new Error('Failed to download from raw URL');
+                        const content = await downloadResponse.text();
+                        currentDatabase = JSON.parse(content);
+                    } else {
+                        // Regular base64 content for smaller files
+                        const content = atob(fileData.content);
+                        currentDatabase = JSON.parse(content);
+                    }
                     
                     const dbSizeMB = (fileData.size / 1024 / 1024).toFixed(2);
                     logMessage(`✅ Loaded database from GitHub: ${currentDatabase.length} records (${dbSizeMB} MB)`, 'success');
@@ -441,7 +453,7 @@
                 logMessage(`❌ Error loading database: ${error.message}`, 'error');
                 
                 // Try fallback to local file if GitHub API fails
-                if (error.message.includes('GitHub') || error.message.includes('API')) {
+                if (error.message.includes('GitHub') || error.message.includes('API') || error.message.includes('JSON')) {
                     try {
                         logMessage('🔄 Trying local file fallback...', 'warning');
                         const response = await fetch('database_mini.json');
