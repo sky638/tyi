@@ -401,15 +401,62 @@
             logMessage('Loading current database...', 'info');
             
             try {
-                const response = await fetch('database_mini.json');
-                if (!response.ok) throw new Error('Database not found');
+                // Try to get GitHub token for API access
+                const token = document.getElementById('github-token').value;
                 
-                currentDatabase = await response.json();
-                logMessage(`✅ Loaded database with ${currentDatabase.length} records`, 'success');
+                if (token) {
+                    // Load from GitHub API (always gets latest version)
+                    logMessage('📡 Fetching latest database from GitHub...', 'info');
+                    const response = await fetch('https://api.github.com/repos/sky638/tyi/contents/database_mini.json', {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to fetch from GitHub API');
+                    
+                    const fileData = await response.json();
+                    const content = atob(fileData.content);
+                    currentDatabase = JSON.parse(content);
+                    
+                    const dbSizeMB = (fileData.size / 1024 / 1024).toFixed(2);
+                    logMessage(`✅ Loaded database from GitHub: ${currentDatabase.length} records (${dbSizeMB} MB)`, 'success');
+                    logMessage(`📄 Current SHA: ${fileData.sha.substring(0, 7)}...`, 'info');
+                    
+                } else {
+                    // Fallback to local file if no token
+                    logMessage('⚠️ No GitHub token - loading local file (may be outdated)', 'warning');
+                    const response = await fetch('database_mini.json');
+                    if (!response.ok) throw new Error('Database not found');
+                    
+                    currentDatabase = await response.json();
+                    logMessage(`✅ Loaded local database with ${currentDatabase.length} records`, 'success');
+                    logMessage('💡 Add GitHub token to always get latest version', 'info');
+                }
+                
                 return currentDatabase;
                 
             } catch (error) {
                 logMessage(`❌ Error loading database: ${error.message}`, 'error');
+                
+                // Try fallback to local file if GitHub API fails
+                if (error.message.includes('GitHub') || error.message.includes('API')) {
+                    try {
+                        logMessage('🔄 Trying local file fallback...', 'warning');
+                        const response = await fetch('database_mini.json');
+                        if (!response.ok) throw new Error('Local database not found');
+                        
+                        currentDatabase = await response.json();
+                        logMessage(`✅ Loaded local database with ${currentDatabase.length} records`, 'success');
+                        logMessage('⚠️ Using local file - numbers may not reflect recent uploads', 'warning');
+                        return currentDatabase;
+                        
+                    } catch (fallbackError) {
+                        logMessage(`❌ Local fallback failed: ${fallbackError.message}`, 'error');
+                    }
+                }
+                
                 throw error;
             }
         }
@@ -521,33 +568,77 @@
             logMessage('🌐 Creating site preview...', 'info');
 
             try {
-                // Create a temporary database file for preview
                 const testData = JSON.stringify(previewData, null, 2);
+                const dataSizeMB = (new Blob([testData]).size / 1024 / 1024).toFixed(2);
+                logMessage(`📊 Preview data size: ${dataSizeMB} MB`, 'info');
+                
+                // Try sessionStorage first for smaller datasets
+                if (testData.length < 5000000) { // ~5MB limit for sessionStorage
+                    try {
+                        sessionStorage.setItem('testDatabaseData', testData);
+                        logMessage('💾 Using sessionStorage for preview data', 'info');
+                        
+                        // Open the main site in test mode
+                        const testUrl = `${window.location.origin}${window.location.pathname.replace('database_updater_simple.html', 'index.html')}?test=true`;
+                        const newWindow = window.open(testUrl, '_blank');
+                        
+                        if (newWindow) {
+                            logMessage('✅ Site preview opened in new tab', 'success');
+                            logMessage('💡 The preview uses your updated data without affecting the live database', 'info');
+                        } else {
+                            logMessage('❌ Failed to open preview. Please allow popups and try again.', 'error');
+                        }
+                        return;
+                    } catch (storageError) {
+                        logMessage('⚠️ SessionStorage quota exceeded, falling back to blob URL approach', 'warning');
+                    }
+                }
+                
+                // Fallback to blob URL approach for larger datasets
+                logMessage('🔗 Using blob URL approach for large dataset', 'info');
+                
+                // Create blob and URL
                 const blob = new Blob([testData], { type: 'application/json' });
+                const blobUrl = URL.createObjectURL(blob);
                 
-                // Create a temporary URL for the blob
-                const url = URL.createObjectURL(blob);
+                // Store blob URL in a way the main site can access it
+                // We'll use a small sessionStorage entry with just the blob URL
+                const previewInfo = {
+                    useBlobUrl: true,
+                    blobUrl: blobUrl,
+                    dataSize: dataSizeMB,
+                    timestamp: new Date().toISOString()
+                };
                 
-                // Store the URL for cleanup later
-                window.testDataUrl = url;
+                try {
+                    sessionStorage.setItem('testDatabaseInfo', JSON.stringify(previewInfo));
+                } catch (e) {
+                    logMessage('❌ Cannot store even preview info in sessionStorage', 'error');
+                    return;
+                }
                 
-                // Create a data URL that can be accessed by the main site
-                const dataUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(testData)));
+                // Store the blob URL globally so we can clean it up later
+                window.testDataBlobUrl = blobUrl;
                 
-                // Open the main site in test mode with the preview data
-                const testUrl = `${window.location.origin}${window.location.pathname.replace('database_updater_simple.html', 'index.html')}?test=true`;
-                
-                // Store the test data in sessionStorage so the main site can access it
-                sessionStorage.setItem('testDatabaseData', testData);
-                
-                // Open in a new tab/window
+                // Open the main site in test mode with blob URL indicator
+                const testUrl = `${window.location.origin}${window.location.pathname.replace('database_updater_simple.html', 'index.html')}?test=true&useBlob=true`;
                 const newWindow = window.open(testUrl, '_blank');
                 
                 if (newWindow) {
-                    logMessage('✅ Site preview opened in new tab', 'success');
-                    logMessage('💡 The preview uses your updated data without affecting the live database', 'info');
+                    logMessage('✅ Site preview opened in new tab (blob URL mode)', 'success');
+                    logMessage('💡 Large dataset loaded via blob URL - preview may take a moment to load', 'info');
+                    
+                    // Clean up blob URL after a delay to allow the other tab to load it
+                    setTimeout(() => {
+                        if (window.testDataBlobUrl) {
+                            URL.revokeObjectURL(window.testDataBlobUrl);
+                            window.testDataBlobUrl = null;
+                            logMessage('🧹 Cleaned up blob URL', 'info');
+                        }
+                    }, 30000); // 30 seconds should be enough for the other tab to load
                 } else {
                     logMessage('❌ Failed to open preview. Please allow popups and try again.', 'error');
+                    URL.revokeObjectURL(blobUrl); // Clean up immediately if popup failed
                 }
                 
             } catch (error) {
@@ -684,7 +775,8 @@
             logMessage('🚀 Updating database...', 'info');
 
             try {
-                // Get current file info
+                // Always get the latest file info to ensure we have the current SHA
+                logMessage('📡 Fetching latest database state...', 'info');
                 const fileResponse = await fetch('https://api.github.com/repos/sky638/tyi/contents/database_mini.json', {
                     headers: {
                         'Authorization': `token ${token}`,
@@ -692,14 +784,19 @@
                     }
                 });
 
-                if (!fileResponse.ok) throw new Error('Failed to get current file');
+                if (!fileResponse.ok) throw new Error('Failed to get current file info');
                 const fileData = await fileResponse.json();
+                logMessage(`✅ Got latest SHA: ${fileData.sha.substring(0, 7)}...`, 'info');
 
                 // Create updated content
+                logMessage('📝 Preparing database content...', 'info');
                 const content = JSON.stringify(previewData, null, 2);
                 const encodedContent = btoa(unescape(encodeURIComponent(content)));
+                const contentSizeMB = (new Blob([content]).size / 1024 / 1024).toFixed(2);
+                logMessage(`📊 Database size: ${contentSizeMB} MB (${previewData.length} records)`, 'info');
 
-                // Update file
+                // Update file with the latest SHA
+                logMessage('🚀 Pushing to GitHub...', 'info');
                 const updateResponse = await fetch('https://api.github.com/repos/sky638/tyi/contents/database_mini.json', {
                     method: 'PUT',
                     headers: {
@@ -710,24 +807,35 @@
                     body: JSON.stringify({
                         message: `Update database - ${new Date().toISOString()}`,
                         content: encodedContent,
-                        sha: fileData.sha
+                        sha: fileData.sha // Always use the latest SHA
                     })
                 });
 
                 if (!updateResponse.ok) {
                     const error = await updateResponse.json();
-                    throw new Error(error.message || 'Update failed');
+                    throw new Error(`GitHub API error: ${error.message || 'Update failed'}`);
                 }
 
-                logMessage('✅ Database updated successfully!', 'success');
-                logMessage('🔄 Refresh the page to see changes', 'info');
+                const responseData = await updateResponse.json();
+                const newSha = responseData.content?.sha?.substring(0, 7) || 'unknown';
                 
-                // Disable buttons
-                updateBtn.disabled = true;
-                previewBtn.disabled = true;
+                logMessage('✅ Database updated successfully!', 'success');
+                logMessage(`� New SHA: ${newSha}... - Ready for next upload!`, 'success');
+                logMessage('💡 You can make another upload immediately without pulling', 'info');
+                
+                // Re-enable buttons for next upload instead of disabling them
+                previewBtn.disabled = true; // This one stays disabled until new CSV
+                updateBtn.disabled = true; // This one stays disabled until new preview
 
             } catch (error) {
                 logMessage(`❌ Update failed: ${error.message}`, 'error');
+                
+                // Add helpful troubleshooting info
+                if (error.message.includes('does not match')) {
+                    logMessage('💡 This might be a SHA mismatch - try again in a few seconds', 'warning');
+                } else if (error.message.includes('rate limit')) {
+                    logMessage('⏳ GitHub API rate limit reached - wait a minute and try again', 'warning');
+                }
             }
         }
 

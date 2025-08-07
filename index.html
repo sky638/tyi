@@ -646,14 +646,50 @@
             try {
                 let text;
                 
-                // Check if we're in test mode and have test data in sessionStorage
-                if (isTestMode && sessionStorage.getItem('testDatabaseData')) {
-                    updateStatus('Loading preview data...');
-                    updateProgress(30);
-                    text = sessionStorage.getItem('testDatabaseData');
-                    updateStatus('Processing preview data...');
-                    updateProgress(60);
+                // Check if we're in test mode
+                if (isTestMode) {
+                    // First try to get data from sessionStorage (small datasets)
+                    if (sessionStorage.getItem('testDatabaseData')) {
+                        updateStatus('Loading preview data from sessionStorage...');
+                        updateProgress(30);
+                        text = sessionStorage.getItem('testDatabaseData');
+                        updateStatus('Processing preview data...');
+                        updateProgress(60);
+                    } 
+                    // Then try blob URL approach (large datasets)
+                    else if (sessionStorage.getItem('testDatabaseInfo')) {
+                        const previewInfo = JSON.parse(sessionStorage.getItem('testDatabaseInfo'));
+                        if (previewInfo.useBlobUrl && previewInfo.blobUrl) {
+                            updateStatus(`Loading large preview data (${previewInfo.dataSize} MB)...`);
+                            updateProgress(20);
+                            
+                            try {
+                                const response = await fetch(previewInfo.blobUrl);
+                                if (!response.ok) {
+                                    throw new Error('Blob URL no longer accessible');
+                                }
+                                text = await response.text();
+                                updateStatus('Processing large preview dataset...');
+                                updateProgress(60);
+                            } catch (blobError) {
+                                throw new Error(`Failed to load preview data via blob URL: ${blobError.message}`);
+                            }
+                        }
+                    }
+                    // Fallback to regular database if no test data found
+                    else {
+                        updateStatus('No preview data found, loading regular database...');
+                        updateProgress(30);
+                        const response = await fetch(DATA_URL);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        text = await response.text();
+                        updateStatus('Processing data...');
+                        updateProgress(60);
+                    }
                 } else {
+                    // Normal mode - load from database file
                     updateStatus('Downloading data...');
                     updateProgress(30);
 
@@ -710,8 +746,18 @@
                     return obj;
                 });
 
-                updateStatus(isTestMode && sessionStorage.getItem('testDatabaseData') ? 
-                    'Preview data loaded successfully! 🔍' : 'Data loaded successfully!');
+                // Determine the appropriate success message
+                let successMessage = 'Data loaded successfully!';
+                if (isTestMode) {
+                    if (sessionStorage.getItem('testDatabaseData')) {
+                        successMessage = 'Preview data loaded successfully! 🔍';
+                    } else if (sessionStorage.getItem('testDatabaseInfo')) {
+                        const previewInfo = JSON.parse(sessionStorage.getItem('testDatabaseInfo'));
+                        successMessage = `Large preview dataset loaded successfully! 🔍 (${previewInfo.dataSize} MB)`;
+                    }
+                }
+                
+                updateStatus(successMessage);
                 updateProgress(100);
 
                 // Initialize the app
@@ -719,7 +765,7 @@
                     document.getElementById('loadNotice').style.display = 'none';
                     
                     // Show test mode banner if we're in test mode with preview data
-                    if (isTestMode && sessionStorage.getItem('testDatabaseData')) {
+                    if (isTestMode && (sessionStorage.getItem('testDatabaseData') || sessionStorage.getItem('testDatabaseInfo'))) {
                         document.getElementById('testModeBanner').style.display = 'block';
                     }
                     
