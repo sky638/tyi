@@ -726,8 +726,9 @@
                     populateCategories();
                     updateStats();
                     updatePageRankScores(); // Calculate initial PageRank scores
-                    filteredData = [...allData];
-                    renderData();
+                    
+                    // Apply initial filters and sorting (this will set filteredData and render with proper sort order)
+                    applyFilters();
                 }, 500);
 
             } catch (error) {
