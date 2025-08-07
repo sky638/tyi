@@ -437,14 +437,33 @@
                 const updatedRecords = [];
                 const processedRecords = [];
 
-                // Process CSV data
+                // Group CSV data by username first to avoid duplicates
+                const csvGrouped = new Map();
                 csvData.forEach(csvRecord => {
                     const username = csvRecord.username;
+                    if (!csvGrouped.has(username)) {
+                        csvGrouped.set(username, {
+                            username,
+                            followers: [],
+                            record: csvRecord // Keep the first record for other data
+                        });
+                    }
+                    // Collect all followers for this username
+                    if (csvRecord.followed_by) {
+                        csvGrouped.get(username).followers.push(csvRecord.followed_by);
+                    }
+                });
+
+                // Process grouped CSV data (one entry per unique username)
+                csvGrouped.forEach((groupedData, username) => {
                     const existing = existingMap.get(username);
                     
                     if (existing) {
                         // Update existing record - merge followed_by arrays instead of replacing
-                        const csvFormatted = convertCSVToDBFormat(csvRecord);
+                        const csvFormatted = convertCSVToDBFormat(groupedData.record);
+                        // Use all collected followers instead of just one
+                        csvFormatted.followed_by = [...new Set(groupedData.followers)];
+                        
                         const updated = {
                             ...existing,
                             ...csvFormatted,
@@ -468,7 +487,9 @@
                         processedRecords.push(updated);
                     } else {
                         // New record
-                        const newRecord = convertCSVToDBFormat(csvRecord);
+                        const newRecord = convertCSVToDBFormat(groupedData.record);
+                        // Use all collected followers instead of just one
+                        newRecord.followed_by = [...new Set(groupedData.followers)];
                         newRecords.push(newRecord);
                         processedRecords.push(newRecord);
                     }
