@@ -5,6 +5,11 @@ const path = require('path');
 
 // Import your API endpoints
 const accountsHandler = require('./api/accounts');
+const { calculatePageRank } = require('./api/pagerank');
+const { ensureSchema } = require('./db');
+
+// Initialize database schema
+ensureSchema().catch(console.error);
 
 const server = http.createServer(async (req, res) => {
     const parsedUrl = url.parse(req.url, true);
@@ -13,6 +18,29 @@ const server = http.createServer(async (req, res) => {
     // Handle API routes
     if (pathname === '/api/accounts') {
         return accountsHandler(req, res);
+    }
+    
+    if (pathname === '/api/pagerank') {
+        if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => {
+                body += chunk.toString();
+            });
+            req.on('end', () => {
+                try {
+                    req.body = JSON.parse(body);
+                    return calculatePageRank(req, res);
+                } catch (error) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }));
+                }
+            });
+            return;
+        } else {
+            res.writeHead(405, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Method not allowed' }));
+            return;
+        }
     }
     
     // Serve static files
@@ -29,7 +57,15 @@ const server = http.createServer(async (req, res) => {
             '.json': 'application/json'
         }[ext] || 'text/plain';
         
-        res.writeHead(200, { 'Content-Type': contentType });
+        // Prevent caching for HTML files to avoid stale JS issues
+        const headers = { 'Content-Type': contentType };
+        if (ext === '.html') {
+            headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
+            headers['Pragma'] = 'no-cache';
+            headers['Expires'] = '0';
+        }
+        
+        res.writeHead(200, headers);
         fs.createReadStream(filePath).pipe(res);
     } else {
         res.writeHead(404);
@@ -41,4 +77,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log('📊 API available at /api/accounts');
+    console.log('🔄 PageRank API available at /api/pagerank (POST)');
 });
