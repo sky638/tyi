@@ -226,6 +226,12 @@
             flex-wrap: wrap;
             gap: 15px;
         }
+        .pagination {
+            display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+        }
+        .pagination button { padding:6px 12px; border:1px solid #ccc; background:#fff; border-radius:6px; cursor:pointer; }
+        .pagination button.active { background:#667eea; color:#fff; border-color:#667eea; }
+        .pagination span { font-size:0.85rem; color:#666; }
 
         .results-count {
             font-size: 1.2rem;
@@ -474,6 +480,7 @@
                         <option value="following_asc">Following (Low to High)</option>
                     </select>
                 </div>
+                <div class="pagination" id="pagination"></div>
             </div>
 
             <div class="data-grid" id="dataGrid">
@@ -483,6 +490,7 @@
     </div>
 
     <script>
+        // Global state
         let allData = [];
         let filteredData = [];
         let selectedFollowers = new Set(); // Track which followers are selected for filtering
@@ -490,6 +498,13 @@
         let pageRankScores = new Map(); // Store PageRank scores for each account
         let currentPage = 1;
         const itemsPerPage = 50;
+        
+        // Server-side pagination state
+        let serverMode = false; // Will be true when API loads successfully
+        let currentFilters = {};
+        let isLoading = false;
+        let hasMorePages = true;
+        let totalServerRecords = 0;
 
         // Check for test mode
         const urlParams = new URLSearchParams(window.location.search);
@@ -689,10 +704,50 @@
                         updateProgress(60);
                     }
                 } else {
-                    // Normal mode - load from database file
-                    updateStatus('Downloading data...');
+                    // Normal mode - load from database API or fallback to JSON
+                    updateStatus('Connecting to database...');
                     updateProgress(30);
 
+                    try {
+                        // Try database API first with simple approach
+                        const response = await fetch('/api/accounts?limit=50&sort=followers_count&order=DESC');
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            const data = result.accounts;
+                            
+                            // Set server mode and totals
+                            serverMode = true;
+                            totalServerRecords = result.total;
+                            hasMorePages = data.length === 50;
+                            
+                            updateStatus(`Loaded ${data.length} records from database (${result.total} total available)`);
+                            updateProgress(90);
+
+                            // Process the data 
+                            allData = data.filter(item => {
+                                return item && 
+                                       typeof item === 'object' && 
+                                       (item.userName || item.instagram_link) &&
+                                       Object.keys(item).length > 0;
+                            });
+
+                            updateStatus(`Processed ${allData.length} valid records (${totalServerRecords} total in database)`);
+                            updateProgress(100);
+
+                            // Continue with your existing processing
+                            populateCategories();
+                            updateStats();
+                            updatePageRankScores();
+                            applyFilters();
+                            return; // Exit early since we got data from API
+                        }
+                    } catch (apiError) {
+                        console.warn('Database API not available, falling back to JSON file:', apiError.message);
+                        updateStatus('Database connection failed, loading from JSON file...');
+                    }
+
+                    // Fallback to JSON file
                     const response = await fetch(DATA_URL);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -876,11 +931,72 @@
         }
 
         function applyFilters() {
+            if (!serverMode) {
+                // Fallback to client-side filtering for JSON mode
+                return applyFiltersClientSide();
+            }
+
+            // Server-side filtering: simple approach
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            const categoryInput = document.getElementById('categoryFilter').value.trim();
+            const minFollowers = document.getElementById('minFollowers').value.trim() || '0';
+            const maxFollowers = document.getElementById('maxFollowers').value.trim() || '999999999';
+            const sortValue = document.getElementById('sortBy').value;
+            
+            // Map sort values to API parameters
+            const sortMap = {
+                'followers_desc': 'followers_count',
+                'followers_asc': 'followers_count', 
+                'username_asc': 'username',
+                'username_desc': 'username',
+                'pagerank_desc': 'pagerank_score',
+                'pagerank_asc': 'pagerank_score'
+            };
+            const sortCol = sortMap[sortValue] || 'followers_count';
+            const sortDir = sortValue.includes('_asc') ? 'ASC' : 'DESC';
+            
+            // Build query parameters
+            const params = new URLSearchParams({
+                limit: '50',
+                offset: '0',
+                search: searchTerm,
+                category: categoryInput,
+                min_followers: minFollowers,
+                max_followers: maxFollowers,
+                sort: sortCol,
+                order: sortDir
+            });
+            
+            // Fetch filtered results
+            fetch('/api/accounts?' + params.toString())
+                .then(response => response.json())
+                .then(result => {
+                    allData = result.accounts || [];
+                    totalServerRecords = result.total || 0;
+                    hasMorePages = allData.length === 50;
+                    
+                    document.getElementById('resultsCount').textContent = 
+                        `Showing ${allData.length} results (${result.total} total found)`;
+                    
+                    // Reset pagination and render
+                    currentPage = 1;
+                    filteredData = allData.slice();
+                    renderData();
+                })
+                .catch(error => {
+                    console.error('Filter error:', error);
+                    // Fall back to client-side
+                    serverMode = false;
+                    applyFiltersClientSide();
+                });
+        }
+
+        function applyFiltersClientSide() {
+            // Original client-side logic for JSON fallback
             if (allData.length === 0) return;
 
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const categoryInput = document.getElementById('categoryFilter').value.trim().toLowerCase();
-            // Split by comma, trim, and filter out empty strings
             const categoryTerms = categoryInput ? categoryInput.split(',').map(s => s.trim()).filter(Boolean) : [];
             const minFollowers = parseFloat(document.getElementById('minFollowers').value) || 0;
             const maxFollowers = parseFloat(document.getElementById('maxFollowers').value) || Infinity;
@@ -890,13 +1006,11 @@
                     item.userName.toLowerCase().includes(searchTerm) ||
                     (item.Description && item.Description.toLowerCase().includes(searchTerm));
 
-                // Category filter: if no terms, match all; else, match if any term is contained in the category (case-insensitive)
                 const categoryValue = (item.Category || '').toLowerCase();
                 const matchesCategory = categoryTerms.length === 0 || categoryTerms.some(term => categoryValue.includes(term));
 
                 const matchesFollowers = item.followersCount >= minFollowers && item.followersCount <= maxFollowers;
 
-                // New follower filter logic: if no followers selected, show all; else, only show accounts followed by selected followers
                 const matchesFollowerFilter = selectedFollowers.size === 0 || 
                     (item.followed_by && Array.isArray(item.followed_by) && 
                      item.followed_by.some(follower => selectedFollowers.has(follower)));
@@ -945,18 +1059,80 @@
             renderData();
         }
 
+        async function loadMoreResults(isNewSearch = false) {
+            if (isLoading || (!hasMorePages && !isNewSearch)) return;
+            
+            isLoading = true;
+            const limit = isNewSearch ? 50 : 50; // Start with smaller batches
+            const offset = isNewSearch ? 0 : allData.length;
+            
+            try {
+                const params = new URLSearchParams({ 
+                    ...currentFilters, 
+                    limit: String(limit), 
+                    offset: String(offset) 
+                });
+                
+                // Add timeout for server requests
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+                
+                const response = await fetch('/api/accounts?' + params.toString(), {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                
+                const result = await response.json();
+                const newData = result.accounts || [];
+                
+                if (isNewSearch) {
+                    allData = newData;
+                    totalServerRecords = result.total;
+                    document.getElementById('resultsCount').textContent = `Showing ${newData.length} results (${result.total} total found)`;
+                } else {
+                    allData.push(...newData);
+                    document.getElementById('resultsCount').textContent = `Showing ${allData.length} results (${result.total} total found)`;
+                }
+                
+                hasMorePages = newData.length === limit; // If we got less than limit, no more pages
+                filteredData = allData.slice(); // All loaded data is already filtered by server
+                renderData();
+                
+            } catch (error) {
+                console.error('Failed to load more results:', error);
+                if (isNewSearch) {
+                    // Fallback to client-side on search failure
+                    serverMode = false;
+                    applyFiltersClientSide();
+                }
+            } finally {
+                isLoading = false;
+            }
+        }
+
         function renderData() {
             const resultsCount = document.getElementById('resultsCount');
             const dataGrid = document.getElementById('dataGrid');
 
             if (allData.length === 0) {
-                resultsCount.textContent = 'Loading data...';
+                if (!serverMode) resultsCount.textContent = 'Loading data...';
+                dataGrid.innerHTML = `
+                    <div class="no-results">
+                        <h3>Loading...</h3>
+                        <p>Please wait while data loads.</p>
+                    </div>
+                `;
                 return;
             }
 
-            resultsCount.textContent = `Showing ${filteredData.length.toLocaleString()} results`;
+            // For server mode, show message set by search/filter functions
+            if (!serverMode) {
+                resultsCount.textContent = `Showing ${allData.length.toLocaleString()} results`;
+            }
 
-            if (filteredData.length === 0) {
+            if (allData.length === 0) {
                 dataGrid.innerHTML = `
                     <div class="no-results">
                         <h3>No results found</h3>
@@ -966,26 +1142,24 @@
                 return;
             }
 
-            // Paginate results
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = Math.min(startIndex + itemsPerPage, filteredData.length);
-            const pageData = filteredData.slice(startIndex, endIndex);
+            // Show all loaded data (simplified - no complex pagination)
+            const cards = allData.map(item => generateCardHtml(item)).join('');
 
-            const cards = pageData.map(item => generateCardHtml(item)).join('');
+            // Add scroll loading indicator if server mode
+            let bottomContent = '';
+            if (serverMode && hasMorePages) {
+                bottomContent = `
+                    <div id="loadingIndicator" style="text-align: center; margin-top: 30px; padding: 20px; color: #666;">
+                        Scroll down for more results
+                    </div>
+                `;
+            }
 
-            // Add load more button if there are more results
-            const loadMoreButton = endIndex < filteredData.length ? `
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-primary" onclick="loadMore()">
-                        Load More (${filteredData.length - endIndex} remaining)
-                    </button>
-                </div>
-            ` : '';
-
-            dataGrid.innerHTML = cards + loadMoreButton;
+            dataGrid.innerHTML = cards + bottomContent;
         }
 
-        function loadMore() {
+        function loadMoreClientSide() {
+            // Original client-side load more logic
             currentPage++;
             
             const dataGrid = document.getElementById('dataGrid');
@@ -999,7 +1173,7 @@
 
             const loadMoreButton = endIndex < filteredData.length ? `
                 <div style="text-align: center; margin-top: 30px;">
-                    <button class="btn btn-primary" onclick="loadMore()">
+                    <button class="btn btn-primary" onclick="loadMoreClientSide()">
                         Load More (${filteredData.length - endIndex} remaining)
                     </button>
                 </div>
@@ -1075,6 +1249,23 @@
         document.getElementById('categoryFilter').addEventListener('input', applyFilters);
         document.getElementById('minFollowers').addEventListener('input', applyFilters);
         document.getElementById('maxFollowers').addEventListener('input', applyFilters);
+
+        // Add infinite scroll listener
+        let scrollTimeout;
+        window.addEventListener('scroll', () => {
+            if (!serverMode || !hasMorePages || isLoading) return;
+            
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const scrollPosition = window.innerHeight + window.scrollY;
+                const documentHeight = document.documentElement.scrollHeight;
+                
+                // Load more when user is 500px from bottom
+                if (scrollPosition >= documentHeight - 500) {
+                    loadMoreResults(false);
+                }
+            }, 100); // Debounce scroll events
+        });
 
         // Load data when page loads
         window.addEventListener('load', loadData);

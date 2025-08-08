@@ -1,0 +1,19 @@
+{
+  "name": "tyi",
+  "version": "1.0.0",
+  "description": "Instagram Database with Railway",
+  "main": "migrate-data.js",
+  "scripts": {
+    "start": "node server.js",
+    "migrate": "node migrate-data.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["instagram", "database", "railway"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+  "pg": "^8.16.3",
+  "dotenv": "^16.4.5"
+  }
+}

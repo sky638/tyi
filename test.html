@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <div id="status">Loading...</div>
+    <div id="data"></div>
+    <script>
+        async function testAPI() {
+            try {
+                document.getElementById('status').textContent = 'Fetching API...';
+                const response = await fetch('/api/accounts?limit=5');
+                const result = await response.json();
+                document.getElementById('status').textContent = `Success! Total: ${result.total}, Count: ${result.count}`;
+                document.getElementById('data').innerHTML = result.accounts.map(a => `<p>${a.userName} - ${a.followersCount} followers</p>`).join('');
+            } catch (error) {
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+                console.error(error);
+            }
+        }
+        window.addEventListener('load', testAPI);
+    </script>
+</body>
+</html>
